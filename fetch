@@ -1,0 +1,1 @@
+curl --create-dirs '-#Lo' ".makefiles/$1/Makefile" "https://darianbr.github.io/makefiles/lib/$1/$2/Makefile?nonce=$(date +%s)"
