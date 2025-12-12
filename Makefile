@@ -11,10 +11,5 @@ build:
 clean:
 	@echo "Cleaning build artifacts..."
 	@rm -rf build/ dist/ .makefiles/
-	@find . -name "*.o" -type f -delete
-	@find . -name "*.so" -type f -delete
-	@find . -name "*.a" -type f -delete
-	@find . -name "*.dylib" -type f -delete
-	@find . -name "*.exe" -type f -delete
-	@find . -name "*.out" -type f -delete
+	@find . \( -name "*.o" -o -name "*.so" -o -name "*.a" -o -name "*.dylib" -o -name "*.exe" -o -name "*.out" \) -type f -delete
 	@echo "Clean complete."
