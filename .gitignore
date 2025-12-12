@@ -1,0 +1,10 @@
+# Build artifacts
+*.o
+*.so
+*.a
+*.dylib
+*.exe
+*.out
+build/
+dist/
+.makefiles/
