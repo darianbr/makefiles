@@ -1,0 +1,18 @@
+# Hosted at https://darianbr.github.io/makefiles/fetch
+# Fetches Makefiles from remote repository
+
+# Example usage 1: make .makefiles/php/Makefile
+#   $1 = version (e.g., v1) set by default in parent Makefile
+#   $2 = libname (e.g., php)
+
+# Example usage 2: MF_VERSION=v2 make .makefiles/docker/Makefile
+#   $1 = version (e.g., v2) set by environment variable
+#   $2 = libname (e.g., docker)
+
+if [ -z "$1" ]; then
+  echo "Error: No library name provided."
+  exit 1
+fi
+
+echo "Fetching Makefile for $1..."
+curl --create-dirs '-#Lo' ".makefiles/modules/$1" "https://darianbr.github.io/makefiles/modules/$1?nonce=$(date +%s)"
