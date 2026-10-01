@@ -1,14 +1,15 @@
 #
 # Filename: modules/composer/Makefile
-# Last edited: 2025-12-15 09:12:50
+# Last edited: 2026-10-01 13:05:25
 # Description: Composer module entry targets for install and clean workflows.
 #
+
+-include .makefiles/modules/Makefile
 
 ifndef MF_TOOLS_ROOT
 $(error MF_TOOLS_ROOT is not set. Include modules/Makefile before using modules/composer/Makefile.)
 endif
 
--include .makefiles/modules/Makefile
 -include .makefiles/modules/composer/install-binary.mk
 
 COMPOSER := $(MF_TOOLS_ROOT)composer.phar

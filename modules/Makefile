@@ -1,12 +1,8 @@
 #
 # Filename: modules/Makefile
-# Last edited: 2025-12-15 09:08:39
+# Last edited: 2026-10-01 13:05:25
 # Description: Root module makefile providing shared paths and clean helpers.
 #
-
-ifndef MF_TOOLS_ROOT
-$(error MF_TOOLS_ROOT is not set. Include modules/Makefile before using modules/Makefile.)
-endif
 
 MF_MODULES_ROOT := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 MF_MAKEFILES_ROOT := $(dir $(abspath $(MF_MODULES_ROOT)))

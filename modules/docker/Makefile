@@ -1,14 +1,14 @@
 #
 # Filename: modules/docker/Makefile
-# Last edited: 2025-12-13 13:09:28
+# Last edited: 2026-10-01 13:05:25
 # Description: Docker module entry targets for container lifecycle tasks.
 #
+
+-include .makefiles/modules/Makefile
 
 ifndef MF_TOOLS_ROOT
 $(error MF_TOOLS_ROOT is not set. Include modules/Makefile before using modules/docker/Makefile.)
 endif
-
--include .makefiles/modules/Makefile
 
 echopath::
 	@echo "Docker module Makefile"

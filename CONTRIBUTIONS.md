@@ -12,50 +12,74 @@ The `modules/` directory ships the canonical GNU Make modules published for down
 ```
 modules/
   ├── Makefile            (root: shared variables, guards, helpers)
+  ├── manifest.txt        (lists every published file; fetch reads this)
   ├── composer/.          (Composer module adding targets such as make intall -> composer install)
   │     ├── Makefile      (module entry point → includes root Makefile)
   │     └── *.mk          (helper fragments → header + guard only)
   ├── docker/             (Docker module adding targets such as make docker -> docker build)
   │     └── Makefile
   └── <module>/
-		  ├── Makefile
-		  └── <feature>.mk
+		├── Makefile
+		└── <feature>.mk
 ```
 
 - **Root Makefile** (`modules/Makefile`): defines environment variables (`MF_*`) that every module consumes.
+- **Manifest** (`modules/manifest.txt`): one path per line (relative to `modules/`) for every file that `fetch` may download. The `fetch` script always pulls the root `Makefile` plus every line that starts with the requested module's name.
 - **Module Makefile** (`modules/<module>/Makefile`): exports entry targets (`install`, `clean`, etc.) and must include the root immediately after its header.
 - **Helper fragments** (`modules/<module>/*.mk`): provide optional targets and must *not* include the root directly; they rely on the module Makefile to do so.
 
 ## 2. Required Header + Guard
-Every file under `modules/**/*` starts with the same header, no blank lines before it:
+Every file under `modules/**/*` starts with the same header, no blank lines before it. The guard placement differs by file type:
+
+**Module Makefile** (`modules/<module>/Makefile`) — include the root *first*, then guard (the guard verifies the root actually loaded, since `-include` is silent on missing files):
 
 ```
 #
-# Filename: modules/<path>/<file>
+# Filename: modules/<module>/Makefile
 # Last edited: <YYYY-MM-DD> <HH:MM:SS>
 # Description: <short summary>
 #
 
+-include .makefiles/modules/Makefile
+
 ifndef MF_TOOLS_ROOT
-$(error MF_TOOLS_ROOT is not set. Include modules/Makefile before using <filename>.)
+$(error MF_TOOLS_ROOT is not set. Include modules/Makefile before using modules/<module>/Makefile.)
 endif
 
 <file content begins here>
 ```
 
+**Helper fragment** (`modules/<module>/*.mk`) — guard only, no root include (the parent module Makefile loads the root before this file is included):
+
+```
+#
+# Filename: modules/<module>/<file>.mk
+# Last edited: <YYYY-MM-DD> <HH:MM:SS>
+# Description: <short summary>
+#
+
+ifndef MF_TOOLS_ROOT
+$(error MF_TOOLS_ROOT is not set. Include modules/Makefile before using <file>.mk.)
+endif
+
+<file content begins here>
+```
+
+**Root Makefile** (`modules/Makefile`) — header only, no guard (it is the file that *defines* `MF_TOOLS_ROOT`, so it cannot guard on it).
+
 Checklist:
 1. `Filename` uses the path relative to the repo root.
 2. `Last edited` matches `date -r <file> +"%Y-%m-%d %H:%M:%S"` (local timezone).
 3. `Description` is a one-liner (“Docker module targets for container tasks”).
-4. Exactly one blank line separates the guard from the rest of the file.
+4. Exactly one blank line separates the guard (or root include) from the rest of the file.
 
 ## 3. Include Rules
 
 | File Type                                | Must include | Location of include | Notes |
 |-----------------------------------------|---------------|----------------------|-------|
-| `modules/Makefile` (root)               | _none_        | —                    | Already the root. |
-| `modules/<module>/Makefile`             | `-include .makefiles/modules/Makefile` | Immediately after header/guard | Only once per file. |
-| `modules/<module>/*.mk` helper files    | _never_       | —                    | Depends on parent Makefile. |
+| `modules/Makefile` (root)               | _none_        | —                    | Already the root; no guard. |
+| `modules/<module>/Makefile`             | `-include .makefiles/modules/Makefile` | Immediately after header, **before** the guard | Only once per file. |
+| `modules/<module>/*.mk` helper files    | _never_       | —                    | Depends on parent Makefile; guard only. |
 
 > Tip: keep all include paths literal (no variables) so downstream consumers can grep for them.
 
@@ -72,7 +96,9 @@ Checklist:
 	- Define your targets (prefer `target::` if you expect other files to append behavior).
 3. **Optional helper files**
 	- For reusable snippets (e.g., `install.mk`), create additional `.mk` files with the same header+guard but **without** including the root.
-4. **Update timestamps**
+4. **Register in the manifest**
+	- Add every new file (the module `Makefile` and any `.mk` helpers) to `modules/manifest.txt`, one path per line relative to `modules/`. Without this, `fetch` will not download the file.
+5. **Update timestamps**
 	- After editing, run `date -r modules/<module>/Makefile +"%Y-%m-%d %H:%M:%S"` and copy the result into the header.
 
 ## 5. Editing an Existing Module
@@ -83,8 +109,8 @@ Checklist:
 ├──────────────┼──────────────────────────────────────────────┤
 │ 1. Read spec │ Open the instruction file (linked above).     │
 │ 2. Headers   │ Ensure filename + timestamp + description set.│
-│ 3. Guard     │ `ifndef MF_TOOLS_ROOT` directly under header. │
-│ 4. Includes  │ Module Makefiles include once; helpers never. │
+│ 3. Guard     │ Module: root include, THEN guard. Helper: guard only. │
+│ 4. Includes  │ Module Makefiles include root once (before guard); helpers never. │
 │ 5. Targets   │ Use `clean::` / `install::` when extending.    │
 │ 6. Tests     │ Run the relevant targets (e.g., `make clean`). │
 └──────────────┴──────────────────────────────────────────────┘
@@ -106,6 +132,7 @@ Before submitting:
 - [ ] `MF_TOOLS_ROOT` guard present and correctly references the current filename.
 - [ ] Module Makefiles include `-include .makefiles/modules/Makefile` directly after the header.
 - [ ] Helper `.mk` files avoid extra includes.
+- [ ] Every new/renamed file is listed in `modules/manifest.txt`.
 - [ ] `make <module-target>` succeeds locally in a sample workspace (e.g., `testing-something`).
 - [ ] Documentation (README/CONTRIBUTIONS) updated if behavior is user-visible.
 - [ ] Commits focus on a single module or cohesive change set.
