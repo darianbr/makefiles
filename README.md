@@ -57,6 +57,22 @@ This repository hosts the canonical makefiles published at `https://darianbr.git
 - `fetch` – helper script that downloads the requested module over HTTPS.
 - `CONTRIBUTIONS.md` – rules for adding or editing modules.
 
+## PHPUnit (Git submodule)
+PHPUnit is vendored as a Git submodule at `phpunit/` (pinned to a release tag). After cloning, initialize it with:
+
+```bash
+git submodule update --init --recursive
+```
+
+Then invoke it directly (requires PHP >= 8.4.1):
+
+```bash
+php phpunit/phpunit --version
+php phpunit/phpunit path/to/tests
+```
+
+Note: this submodule is a standalone checkout for running tests. If a consuming project manages PHPUnit through Composer, keep that dependency as-is; the submodule does not replace it.
+
 ## Contributing
 Please read [CONTRIBUTIONS.md](CONTRIBUTIONS.md) before opening a PR. It covers directory layout, header requirements, and how to structure module-specific targets so they compose cleanly. Remember to add any new file to `modules/manifest.txt` so `fetch` can download it.
 
