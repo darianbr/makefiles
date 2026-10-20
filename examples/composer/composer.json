@@ -1,0 +1,8 @@
+{
+  "name": "darianbr/makefiles-example-composer",
+  "type": "project",
+  "require": {
+    "php": "^8.4.1",
+    "psr/log": "^3.0"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "name": "darianbr/makefiles-example-phpunit",
+  "type": "project",
+  "require": {
+    "php": "^8.4.1"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^13.4"
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Tests\\": "./"
+    }
+  }
+}

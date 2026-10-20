@@ -7,6 +7,10 @@
 
 The `modules/` directory ships the canonical GNU Make modules published for downstream consumers. This guide translates the enforcement rules from [.github/instructions/makefile-consistency.instructions.md](.github/instructions/makefile-consistency.instructions.md) into a practical workflow. The canonical command and compatibility reference is [README.md — Aggregate and Module-Scoped Targets](README.md#aggregate-and-module-scoped-targets).
 
+The repository includes `examples/` as module-by-module MVP projects. Keep
+those examples simple and standalone so users can copy one folder and get
+started quickly.
+
 ## 1. Mental Model
 
 ```
@@ -24,6 +28,10 @@ modules/
   │     └── Makefile
   ├── npm/                (npm dependency installation and generated-artifact cleanup)
   │     └── Makefile
+  ├── typescript/         (TypeScript compile and typecheck targets)
+  │     └── Makefile
+  ├── vitest/             (Vitest test and coverage targets)
+  │     └── Makefile
   └── <module>/
 		├── Makefile
 		└── <feature>.mk
@@ -34,6 +42,7 @@ modules/
 - **Module Makefile** (`modules/<module>/Makefile`): exports entry targets (`install`, `clean`, etc.) and must include the root immediately after its header.
 - **Helper fragments** (`modules/<module>/*.mk`): provide optional targets and must *not* include the root directly; they rely on the module Makefile to do so.
 - **Module scripts** (`modules/<module>/*.sh`): optional module-owned helpers (for example config path discovery). Keep them module-local; avoid module-specific logic in core.
+- **Core scripts** (`modules/core/*.sh`): shared helpers are allowed only when they are module-agnostic (for example reusable path handling and cleanup guardrails).
 
 ### Aggregate and module-scoped invocation
 
@@ -92,6 +101,12 @@ persist resolved values to `.makefiles/cache/`. Path-dependent targets such as
 guarantee consistent behavior within a run. Keep module `clean` targets
 independent from cache-file prerequisites so base clean can remove generated
 folders without rehydrating `.makefiles/` mid-run.
+
+Vitest and TypeScript follow the same dispatch/registration rules as existing
+modules. Keep scoped targets explicit (`make vitest test`,
+`make vitest coverage`, `make typescript test`, `make typescript build`) and
+ensure any new public targets are listed in module registration immediately when
+added.
 
 The exact two-goal form is reserved for scoped dispatch. Unknown modules and
 targets fail before recipes run, print an actionable message to stderr, and
@@ -213,7 +228,7 @@ Before submitting:
 - [ ] Module Makefiles include `-include .makefiles/modules/Makefile` directly after the header.
 - [ ] Helper `.mk` files avoid extra includes.
 - [ ] Every new/renamed file is listed in `modules/manifest.txt`.
-- [ ] `make <module-target>` succeeds locally in a sample workspace (e.g., `testing-something`).
+- [ ] `make <module-target>` succeeds locally in the relevant `examples/<module>/` project (or equivalent sample workspace).
 - [ ] Documentation (README/CONTRIBUTIONS) updated if behavior is user-visible.
 - [ ] Commits focus on a single module or cohesive change set.
 

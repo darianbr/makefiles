@@ -33,6 +33,19 @@ This repository hosts the canonical makefiles published at `https://darianbr.git
 3. Run `make <target>` as usual; the first invocation pulls the requested module into `.makefiles/modules/`. Subsequent runs skip the download.
 4. Add `.makefiles/` to your project's `.gitignore` — it is regenerated on demand and should not be committed.
 
+## Examples First
+
+Prefer starting from [examples/README.md](examples/README.md). Each module has a
+standalone MVP under `examples/<module>/` so you can copy only what you need.
+
+- `examples/codeception/`
+- `examples/phpunit/`
+- `examples/composer/`
+- `examples/npm/`
+- `examples/typescript/`
+- `examples/vitest/`
+- `examples/docker/`
+
 ## Usage Examples
 ### Composer-focused Project
 ```makefile
@@ -82,7 +95,7 @@ $ make composer build
 
 The `npm` and `build` examples assume the consumer has imported an npm module
 and that both modules expose a `build` target. The currently published modules
-in this repository are `codeception`, `composer`, `docker`, `npm`, and `phpunit`; composer currently exposes
+in this repository are `codeception`, `composer`, `docker`, `npm`, `phpunit`, `typescript`, and `vitest`; composer currently exposes
 `install`, `clean`, `echopath`, and `install-composer-binary`, but not `build`.
 Consequently, `make composer build` in a consumer using the current published
 composer module fails validation before running any recipe. For the currently
@@ -161,6 +174,15 @@ before the selected module target.
 | phpunit | `coverage::` | Runs PHPUnit with `--coverage-html` and writes the report to the path resolved from `phpunit.xml` HTML report config (fallback: `coverage/`). |
 | phpunit | `coverage-open::` | Regenerates the HTML coverage report and opens `coverage/index.html` with `BROWSER`, `xdg-open`, or `open`. |
 | phpunit | `clean::` | Removes PHPUnit suite artefacts: HTML coverage output (resolved from `phpunit.xml` or fallback `coverage/`), `.phpunit.cache`, and `.phpunit.result.cache`. |
+| typescript | `echopath::` | Diagnostic: prints the module name, resolved `MF_*` paths, npm executable, and TypeScript configuration values. |
+| typescript | `build::` | Runs TypeScript compilation using the configured project file (default `tsconfig.json`) and output directory (default `build/typescript`). |
+| typescript | `test::` | Runs TypeScript type-check mode (`--noEmit`) using the configured project file. |
+| typescript | `clean::` | Removes TypeScript build artefacts (`build/typescript` and `.tsbuildinfo`) through shared clean guardrails. |
+| vitest | `echopath::` | Diagnostic: prints the module name, resolved `MF_*` paths, Vitest executable, and configured coverage directory. |
+| vitest | `test::` | Runs Vitest in run mode (`vitest run`). |
+| vitest | `coverage::` | Runs Vitest with HTML coverage output (default directory `coverage/vitest`). |
+| vitest | `coverage-open::` | Regenerates the HTML coverage report and opens it with `BROWSER`, `xdg-open`, or `open`. |
+| vitest | `clean::` | Removes Vitest coverage output through shared clean guardrails. |
 
 Aggregate-contributing targets use double-colon (`::`) so multiple modules can contribute to the same target name. `make clean` runs the shared root cleanup and the `clean::` recipes from every imported module that defines them, in import order; for the Composer + Docker example above, that is root + composer + docker. The Codeception, PHPUnit, and Composer clean recipes are independent and do not invoke one another.
 
@@ -173,6 +195,7 @@ Aggregate-contributing targets use double-colon (`::`) so multiple modules can c
   - `modules/manifest.txt` – lists every published file (one path per line); `fetch` uses it to know what to download.
 - `.makefiles/` – generated runtime folder inside consuming projects. Holds two subtrees: `.makefiles/modules/` (the fetched makefiles, mirroring `modules/`) and `.makefiles/tools/` (provisioned binaries, e.g. `composer.phar`).
 - `.makefiles/cache/` – generated project cache folder for resolved runtime paths used by module targets.
+- `examples/` – standalone per-module MVP projects for quick adoption in downstream repositories.
 - `fetch` – helper script that downloads the requested module **and the shared root Makefile** over HTTPS.
 - `CONTRIBUTIONS.md` – rules for adding or editing modules.
 
@@ -184,7 +207,7 @@ The `fetch` script (hosted at `https://darianbr.github.io/makefiles/fetch`) down
 fetch <module> [--force]
 ```
 
-- `<module>` — module name, e.g. `codeception`, `composer`, `docker`, `npm`, or `phpunit`. Must match a folder under `modules/` listed in `modules/manifest.txt`.
+- `<module>` — module name, e.g. `codeception`, `composer`, `docker`, `npm`, `phpunit`, `typescript`, or `vitest`. Must match a folder under `modules/` listed in `modules/manifest.txt`.
 - `--force` — refetch even if the module is already present.
 
 Behavior:
@@ -281,6 +304,9 @@ the same resolved path:
 | `fetch` fails mid-download (`curl` error, partial files) | Network hiccup or the Pages site was mid-rebuild. | Re-run `fetch <module> --force`. If it persists, check the site is up and your network. |
 | `ERROR: Invalid installer signature` when provisioning Composer | The downloaded Composer installer doesn't match the published SHA-384 signature (corrupted download or tampering). | Re-run `make install` (the installer files are deleted and re-downloaded). If it repeats, check your network/proxy. |
 | `make install` fails: no `composer.json` | The composer module runs `composer install` in your project root, which requires a `composer.json` there. | Add a `composer.json` to the project root, or run the target from a directory that has one. |
+| `[typescript] project file not found` | `TSC_PROJECT` does not exist in the project root. | Create the project file, or set `TSC_PROJECT` to a valid relative path (for example `tsconfig.build.json`). |
+| `make typescript test` reports missing Node types or lib symbols | TypeScript project settings/dependencies are incomplete for your runtime. | Install required type packages (for example `@types/node`) and align `compilerOptions.types`/`lib` in the chosen TS config. |
+| `[vitest] Vitest executable not found` | Vitest is not installed in project dependencies and no global binary is available. | Add `vitest` (and optional coverage provider package) to dev dependencies, or override `VITEST_BIN` to a valid path. |
 | `make phpunit install-phpunit-binary` fails | The standalone PHAR download URL is unavailable or invalid. | Check network access, or set `PHPUNIT_VERSION`/`PHPUNIT_URL` to a valid PHPUnit PHAR source. |
 | `[phpunit] PHP executable not found` or `[phpunit] PHPUnit executable not found` | PHP is not installed, or Composer has not installed `vendor/bin/phpunit`. | Install PHP and run `composer install`, or override `PHP`/`PHPUNIT` with paths available to the project. |
 | `No coverage driver detected` (phpunit/codeception coverage) | Neither `xdebug` nor `pcov` is enabled in the active PHP runtime. | Install/enable `xdebug` or `pcov`; for xdebug, use `XDEBUG_MODE=coverage` when running coverage targets. |
