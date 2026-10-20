@@ -212,7 +212,7 @@ fetch <module> [--force]
 
 Behavior:
 - **Idempotent**: if `.makefiles/modules/<module>/Makefile` already exists, `fetch` exits without touching the network (use `--force` to refetch).
-- **Downloads**: the shared root `Makefile` plus every file the manifest assigns to the requested module.
+- **Downloads**: the shared root `Makefile`, all `core/*` shared files, plus every file the manifest assigns to the requested module.
 - **`MAKEFILES_BASE_URL`**: override the base URL (default `https://darianbr.github.io/makefiles/modules`) — useful for testing against a local server.
 - **Errors**: exits non-zero if no module name is given, if the module is not in the manifest, or if any download fails (`curl -sf`).
 
