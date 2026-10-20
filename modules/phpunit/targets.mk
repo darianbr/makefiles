@@ -103,12 +103,29 @@ coverage-open:: coverage
 		exit 1; \
 	fi
 
-# Remove the generated HTML coverage report without touching other project data.
-clean:: $(MF_PHPUNIT_COVERAGE_CACHE_PATH)
-	@coverage_dir=$$(cat "$(MF_PHPUNIT_COVERAGE_CACHE_PATH)"); \
-	if [ -d "$$coverage_dir" ]; then \
-		echo "[phpunit] removing coverage directory $$coverage_dir"; \
-		rm -rf "$$coverage_dir"; \
-	else \
-		echo "[phpunit] coverage directory not found; skipping"; \
-	fi
+# Remove suite-generated PHPUnit artefacts. This clean path is intentionally
+# independent from discovery-cache prerequisites so base clean can delete
+# .makefiles without being recreated mid-run.
+clean::
+	@coverage_dir="coverage"; \
+	if [ -f "$(MF_PROJECT_ROOT)phpunit.xml" ]; then \
+		configured_coverage=$$(grep -Eo 'outputDirectory="[^"]+"' "$(MF_PROJECT_ROOT)phpunit.xml" | head -n1 | sed -E 's/outputDirectory="([^"]+)"/\1/'); \
+		if [ -n "$$configured_coverage" ]; then \
+			coverage_dir="$$configured_coverage"; \
+		fi; \
+	fi; \
+	case "$$coverage_dir" in \
+		/*) ;; \
+		*) coverage_dir="$(MF_PROJECT_ROOT)$$coverage_dir" ;; \
+	esac; \
+	for cleanup_path in "$$coverage_dir" "$(MF_PROJECT_ROOT).phpunit.cache" "$(MF_PROJECT_ROOT).phpunit.result.cache"; do \
+		if [ -d "$$cleanup_path" ]; then \
+			echo "[phpunit] removing directory $$cleanup_path"; \
+			rm -rf "$$cleanup_path"; \
+		elif [ -f "$$cleanup_path" ]; then \
+			echo "[phpunit] removing file $$cleanup_path"; \
+			rm -f "$$cleanup_path"; \
+		else \
+			echo "[phpunit] skipping $$cleanup_path (not found)"; \
+		fi; \
+	done

@@ -112,12 +112,36 @@ coverage-open:: coverage
 		exit 1; \
 	fi
 
-# Remove the generated HTML coverage report without touching other test output.
-clean:: $(MF_CODECEPTION_COVERAGE_CACHE_PATH)
-	@coverage_dir=$$(cat "$(MF_CODECEPTION_COVERAGE_CACHE_PATH)"); \
-	if [ -d "$$coverage_dir" ]; then \
-		echo "[codeception] removing coverage directory $$coverage_dir"; \
-		rm -rf "$$coverage_dir"; \
-	else \
-		echo "[codeception] coverage directory not found; skipping"; \
-	fi
+# Remove suite-generated Codeception directories. This clean path is intentionally
+# independent from discovery-cache prerequisites so base clean can delete
+# .makefiles without being recreated mid-run.
+clean::
+	@output_dir="_output"; \
+	support_dir="_support"; \
+	if [ -f "$(MF_PROJECT_ROOT)codeception.yml" ]; then \
+		configured_output=$$(grep -E '^[[:space:]]*output:[[:space:]]*' "$(MF_PROJECT_ROOT)codeception.yml" | head -n1 | cut -d: -f2- | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$$//' | tr -d '"' | tr -d "'"); \
+		configured_support=$$(grep -E '^[[:space:]]*support:[[:space:]]*' "$(MF_PROJECT_ROOT)codeception.yml" | head -n1 | cut -d: -f2- | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$$//' | tr -d '"' | tr -d "'"); \
+		if [ -n "$$configured_output" ]; then \
+			output_dir="$$configured_output"; \
+		fi; \
+		if [ -n "$$configured_support" ]; then \
+			support_dir="$$configured_support"; \
+		fi; \
+	fi; \
+	case "$$output_dir" in \
+		/*) ;; \
+		*) output_dir="$(MF_PROJECT_ROOT)$$output_dir" ;; \
+	esac; \
+	case "$$support_dir" in \
+		/*) ;; \
+		*) support_dir="$(MF_PROJECT_ROOT)$$support_dir" ;; \
+	esac; \
+	coverage_dir="$$output_dir/coverage"; \
+	for cleanup_path in "$$coverage_dir" "$$support_dir" "$$output_dir"; do \
+		if [ -d "$$cleanup_path" ]; then \
+			echo "[codeception] removing $$cleanup_path"; \
+			rm -rf "$$cleanup_path"; \
+		else \
+			echo "[codeception] skipping $$cleanup_path (not found)"; \
+		fi; \
+	done
