@@ -5,7 +5,7 @@
 #
 
 MF_CODECEPTION_PATH_DISCOVERY_SCRIPT := $(MF_MODULES_ROOT)codeception/discover-paths.sh
-MF_CODECEPTION_COVERAGE_DIR_CACHE_FILE := $(MF_MAKEFILES_ROOT).cache/codeception-coverage-dir
+MF_CODECEPTION_COVERAGE_CACHE_PATH := $(MF_MAKEFILES_ROOT).cache/codeception-coverage-dir
 MF_CODECEPTION_CONFIG_FILE := $(if $(wildcard $(MF_PROJECT_ROOT)codeception.yml),$(MF_PROJECT_ROOT)codeception.yml,(default fallback: _output/coverage))
 MF_CODECEPTION_CONFIG_DEP := $(wildcard $(MF_PROJECT_ROOT)codeception.yml)
 
@@ -19,7 +19,7 @@ $(MF_CODECEPTION_PATH_DISCOVERY_SCRIPT):
 		exit 1; \
 	fi
 
-$(MF_CODECEPTION_COVERAGE_DIR_CACHE_FILE): $(MF_CODECEPTION_PATH_DISCOVERY_SCRIPT) $(MF_CODECEPTION_CONFIG_DEP)
+$(MF_CODECEPTION_COVERAGE_CACHE_PATH): $(MF_CODECEPTION_PATH_DISCOVERY_SCRIPT) $(MF_CODECEPTION_CONFIG_DEP)
 	@mkdir -p "$(dir $@)"
 	@resolved=''; \
 	if [ -x "$(MF_CODECEPTION_PATH_DISCOVERY_SCRIPT)" ]; then \
@@ -30,7 +30,7 @@ $(MF_CODECEPTION_COVERAGE_DIR_CACHE_FILE): $(MF_CODECEPTION_PATH_DISCOVERY_SCRIP
 	fi; \
 	printf '%s\n' "$$resolved" > "$@"
 
-echopath:: $(MF_CODECEPTION_COVERAGE_DIR_CACHE_FILE)
+echopath:: $(MF_CODECEPTION_COVERAGE_CACHE_PATH)
 	@echo "Codeception module Makefile"
 	@echo "MF_PROJECT_ROOT: $(MF_PROJECT_ROOT)"
 	@echo "MF_MAKEFILES_ROOT: $(MF_MAKEFILES_ROOT)"
@@ -38,7 +38,7 @@ echopath:: $(MF_CODECEPTION_COVERAGE_DIR_CACHE_FILE)
 	@echo "MF_TOOLS_ROOT: $(MF_TOOLS_ROOT)"
 	@echo "CODECEPTION: $(CODECEPTION)"
 	@echo "CODECEPTION_CONFIG: $(MF_CODECEPTION_CONFIG_FILE)"
-	@coverage_dir=$$(cat "$(MF_CODECEPTION_COVERAGE_DIR_CACHE_FILE)"); echo "CODECEPTION_COVERAGE_DIR: $$coverage_dir"
+	@coverage_dir=$$(cat "$(MF_CODECEPTION_COVERAGE_CACHE_PATH)"); echo "CODECEPTION_COVERAGE_DIR: $$coverage_dir"
 	@echo ""
 
 codeception-prerequisites:
@@ -82,8 +82,8 @@ test:: codeception-ready
 		"$(CODECEPTION)" run $(CODECEPTION_ARGS); \
 	fi
 
-coverage:: codeception-ready $(MF_CODECEPTION_COVERAGE_DIR_CACHE_FILE)
-	@coverage_dir=$$(cat "$(MF_CODECEPTION_COVERAGE_DIR_CACHE_FILE)"); \
+coverage:: codeception-ready $(MF_CODECEPTION_COVERAGE_CACHE_PATH)
+	@coverage_dir=$$(cat "$(MF_CODECEPTION_COVERAGE_CACHE_PATH)"); \
 	cd "$(MF_PROJECT_ROOT)" && \
 	if [ -f "$(CODECEPTION)" ]; then \
 		"$(PHP)" "$(CODECEPTION)" run --coverage --coverage-html "$$coverage_dir" $(CODECEPTION_ARGS); \
@@ -92,7 +92,7 @@ coverage:: codeception-ready $(MF_CODECEPTION_COVERAGE_DIR_CACHE_FILE)
 	fi
 
 coverage-open:: coverage
-	@coverage_dir=$$(cat "$(MF_CODECEPTION_COVERAGE_DIR_CACHE_FILE)"); \
+	@coverage_dir=$$(cat "$(MF_CODECEPTION_COVERAGE_CACHE_PATH)"); \
 	if ! (cd "$(MF_PROJECT_ROOT)" && [ -f "$$coverage_dir/index.html" ]); then \
 		echo "[codeception] Coverage report was not generated: $$coverage_dir/index.html" >&2; \
 		exit 1; \
@@ -113,8 +113,8 @@ coverage-open:: coverage
 	fi
 
 # Remove the generated HTML coverage report without touching other test output.
-clean:: $(MF_CODECEPTION_COVERAGE_DIR_CACHE_FILE)
-	@coverage_dir=$$(cat "$(MF_CODECEPTION_COVERAGE_DIR_CACHE_FILE)"); \
+clean:: $(MF_CODECEPTION_COVERAGE_CACHE_PATH)
+	@coverage_dir=$$(cat "$(MF_CODECEPTION_COVERAGE_CACHE_PATH)"); \
 	if [ -d "$$coverage_dir" ]; then \
 		echo "[codeception] removing coverage directory $$coverage_dir"; \
 		rm -rf "$$coverage_dir"; \
