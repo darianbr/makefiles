@@ -33,6 +33,19 @@ This repository hosts the canonical makefiles published at `https://darianbr.git
 3. Run `make <target>` as usual; the first invocation pulls the requested module into `.makefiles/modules/`. Subsequent runs skip the download.
 4. Add `.makefiles/` to your project's `.gitignore` — it is regenerated on demand and should not be committed.
 
+## Examples First
+
+Prefer starting from [examples/README.md](examples/README.md). Each module has a
+standalone MVP under `examples/<module>/` so you can copy only what you need.
+
+- `examples/codeception/`
+- `examples/phpunit/`
+- `examples/composer/`
+- `examples/npm/`
+- `examples/typescript/`
+- `examples/vitest/`
+- `examples/docker/`
+
 ## Usage Examples
 ### Composer-focused Project
 ```makefile
@@ -182,6 +195,7 @@ Aggregate-contributing targets use double-colon (`::`) so multiple modules can c
   - `modules/manifest.txt` – lists every published file (one path per line); `fetch` uses it to know what to download.
 - `.makefiles/` – generated runtime folder inside consuming projects. Holds two subtrees: `.makefiles/modules/` (the fetched makefiles, mirroring `modules/`) and `.makefiles/tools/` (provisioned binaries, e.g. `composer.phar`).
 - `.makefiles/cache/` – generated project cache folder for resolved runtime paths used by module targets.
+- `examples/` – standalone per-module MVP projects for quick adoption in downstream repositories.
 - `fetch` – helper script that downloads the requested module **and the shared root Makefile** over HTTPS.
 - `CONTRIBUTIONS.md` – rules for adding or editing modules.
 

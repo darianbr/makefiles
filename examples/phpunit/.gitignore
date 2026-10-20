@@ -1,9 +1,5 @@
 /.makefiles/
-/node_modules/
 /vendor/
 /.phpunit.cache/
 /.phpunit.result.cache
-/_output/
 /coverage/
-/_support/
-/build/

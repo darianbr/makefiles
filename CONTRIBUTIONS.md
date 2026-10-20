@@ -7,6 +7,10 @@
 
 The `modules/` directory ships the canonical GNU Make modules published for downstream consumers. This guide translates the enforcement rules from [.github/instructions/makefile-consistency.instructions.md](.github/instructions/makefile-consistency.instructions.md) into a practical workflow. The canonical command and compatibility reference is [README.md — Aggregate and Module-Scoped Targets](README.md#aggregate-and-module-scoped-targets).
 
+The repository includes `examples/` as module-by-module MVP projects. Keep
+those examples simple and standalone so users can copy one folder and get
+started quickly.
+
 ## 1. Mental Model
 
 ```
@@ -224,7 +228,7 @@ Before submitting:
 - [ ] Module Makefiles include `-include .makefiles/modules/Makefile` directly after the header.
 - [ ] Helper `.mk` files avoid extra includes.
 - [ ] Every new/renamed file is listed in `modules/manifest.txt`.
-- [ ] `make <module-target>` succeeds locally in a sample workspace (e.g., `testing-something`).
+- [ ] `make <module-target>` succeeds locally in the relevant `examples/<module>/` project (or equivalent sample workspace).
 - [ ] Documentation (README/CONTRIBUTIONS) updated if behavior is user-visible.
 - [ ] Commits focus on a single module or cohesive change set.
 

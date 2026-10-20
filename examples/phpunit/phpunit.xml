@@ -2,12 +2,12 @@
 <phpunit bootstrap="vendor/autoload.php" cacheDirectory=".phpunit.cache" colors="true">
     <source>
         <include>
-            <directory>PHPUnit</directory>
+            <directory>tests</directory>
         </include>
     </source>
     <testsuites>
-        <testsuite name="PHPUnit smoke tests">
-            <directory>PHPUnit</directory>
+        <testsuite name="PHPUnit example tests">
+            <directory>tests</directory>
         </testsuite>
     </testsuites>
 </phpunit>

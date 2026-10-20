@@ -1,0 +1,4 @@
+/.makefiles/
+/node_modules/
+/build/
+/.tsbuildinfo

@@ -1,14 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ESNext"],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "strict": true,
-    "rootDir": "src",
-    "skipLibCheck": true,
     "outDir": "build/typescript",
-    "types": ["node", "vitest/globals"]
+    "rootDir": "src"
   },
   "include": ["src/**/*.ts"]
 }
