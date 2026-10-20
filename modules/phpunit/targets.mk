@@ -11,6 +11,14 @@ MF_PHPUNIT_CONFIG_DEP := $(wildcard $(MF_PROJECT_ROOT)phpunit.xml)
 
 .PHONY: echopath test coverage coverage-open clean phpunit-prerequisites install-phpunit-binary
 
+$(MF_PHPUNIT_PATH_DISCOVERY_SCRIPT):
+	@echo "[phpunit] refreshing cached module files"
+	@$(MAKE) --no-print-directory -B "$(MF_MODULES_ROOT)phpunit/Makefile"
+	@if [ ! -f "$@" ]; then \
+		echo "[phpunit] missing discovery script after refresh: $@" >&2; \
+		exit 1; \
+	fi
+
 $(MF_PHPUNIT_COVERAGE_CACHE): $(MF_PHPUNIT_PATH_DISCOVERY_SCRIPT) $(MF_PHPUNIT_CONFIG_DEP)
 	@mkdir -p "$(dir $@)"
 	@resolved=''; \
