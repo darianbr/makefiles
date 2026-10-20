@@ -9,7 +9,7 @@ MF_PHPUNIT_COVERAGE_CACHE_PATH := $(MF_CACHE_ROOT)phpunit-coverage-dir
 MF_PHPUNIT_CONFIG_FILE := $(if $(wildcard $(MF_PROJECT_ROOT)phpunit.xml),$(MF_PROJECT_ROOT)phpunit.xml,(default fallback: coverage))
 MF_PHPUNIT_CONFIG_DEP := $(wildcard $(MF_PROJECT_ROOT)phpunit.xml)
 
-.PHONY: echopath test coverage coverage-open clean phpunit-prerequisites install-phpunit-binary
+.PHONY: echopath test coverage coverage-open clean phpunit-prerequisites phpunit-coverage-prerequisites install-phpunit-binary
 
 $(MF_PHPUNIT_PATH_DISCOVERY_SCRIPT):
 	@echo "[phpunit] refreshing cached module files"
@@ -47,6 +47,13 @@ phpunit-prerequisites:
 		echo "[phpunit] Install PHP or invoke make with PHP=/path/to/php." >&2; \
 		exit 1; \
 	fi
+
+phpunit-coverage-prerequisites: phpunit-prerequisites
+	@if ! (cd "$(MF_PROJECT_ROOT)" && "$(PHP)" -m | grep -qiE '^(xdebug|pcov)$$'); then \
+		echo "[phpunit] No coverage driver detected. Install and enable xdebug or pcov for line coverage." >&2; \
+		echo "[phpunit] Hint: xdebug users may also need XDEBUG_MODE=coverage." >&2; \
+		exit 1; \
+	fi
 	@if cd "$(MF_PROJECT_ROOT)" && { [ -f "$(PHPUNIT)" ] || command -v "$(PHPUNIT)" >/dev/null 2>&1; }; then \
 		:; \
 	else \
@@ -73,13 +80,21 @@ test:: phpunit-prerequisites
 		"$(PHPUNIT)" $(PHPUNIT_ARGS); \
 	fi
 
-coverage:: phpunit-prerequisites $(MF_PHPUNIT_COVERAGE_CACHE_PATH)
+coverage:: phpunit-coverage-prerequisites $(MF_PHPUNIT_COVERAGE_CACHE_PATH)
 	@coverage_dir=$$(cat "$(MF_PHPUNIT_COVERAGE_CACHE_PATH)"); \
 	cd "$(MF_PROJECT_ROOT)" && \
 	if [ -f "$(PHPUNIT)" ]; then \
-		"$(PHP)" "$(PHPUNIT)" --coverage-html "$$coverage_dir" $(PHPUNIT_ARGS); \
+		if "$(PHP)" -m | grep -qi '^xdebug$$'; then \
+			XDEBUG_MODE=coverage "$(PHP)" "$(PHPUNIT)" --coverage-html "$$coverage_dir" $(PHPUNIT_ARGS); \
+		else \
+			"$(PHP)" "$(PHPUNIT)" --coverage-html "$$coverage_dir" $(PHPUNIT_ARGS); \
+		fi; \
 	else \
-		"$(PHPUNIT)" --coverage-html "$$coverage_dir" $(PHPUNIT_ARGS); \
+		if "$(PHP)" -m | grep -qi '^xdebug$$'; then \
+			XDEBUG_MODE=coverage "$(PHPUNIT)" --coverage-html "$$coverage_dir" $(PHPUNIT_ARGS); \
+		else \
+			"$(PHPUNIT)" --coverage-html "$$coverage_dir" $(PHPUNIT_ARGS); \
+		fi; \
 	fi
 
 coverage-open:: coverage
