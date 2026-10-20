@@ -11,6 +11,14 @@ MF_CODECEPTION_CONFIG_DEP := $(wildcard $(MF_PROJECT_ROOT)codeception.yml)
 
 .PHONY: echopath test coverage coverage-open clean codeception-prerequisites codeception-ready
 
+$(MF_CODECEPTION_PATH_DISCOVERY_SCRIPT):
+	@echo "[codeception] refreshing cached module files"
+	@$(MAKE) --no-print-directory -B "$(MF_MODULES_ROOT)codeception/Makefile"
+	@if [ ! -f "$@" ]; then \
+		echo "[codeception] missing discovery script after refresh: $@" >&2; \
+		exit 1; \
+	fi
+
 $(MF_CODECEPTION_COVERAGE_CACHE): $(MF_CODECEPTION_PATH_DISCOVERY_SCRIPT) $(MF_CODECEPTION_CONFIG_DEP)
 	@mkdir -p "$(dir $@)"
 	@resolved=''; \
