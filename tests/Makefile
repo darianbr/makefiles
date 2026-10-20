@@ -5,4 +5,5 @@
 
 # Pull the composer module (and the shared root Makefile) the first time it's needed.
 .makefiles/modules/%/Makefile:
-	@cp -rp ../modules/ .makefiles
+	@mkdir -p .makefiles/modules
+	@cp -rp ../modules/. .makefiles/modules/

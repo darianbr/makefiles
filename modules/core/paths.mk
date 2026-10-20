@@ -12,5 +12,6 @@ MF_MODULES_ROOT := $(dir $(abspath $(MF_ROOT_ENTRY)))
 MF_MAKEFILES_ROOT := $(dir $(abspath $(MF_MODULES_ROOT)))
 MF_TOOLS_ROOT := $(MF_MAKEFILES_ROOT)tools/
 MF_PROJECT_ROOT := $(dir $(abspath $(MF_MAKEFILES_ROOT)))
+MF_CACHE_ROOT := $(MF_MAKEFILES_ROOT)cache/
 
 MF_MODULES :=

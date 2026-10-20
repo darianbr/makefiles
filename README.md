@@ -7,14 +7,14 @@ This repository hosts the canonical makefiles published at `https://darianbr.git
 ## Overview
 - **Modular**: each module under `modules/` exposes its own `Makefile` plus optional helper `.mk` fragments.
 - **Bootstrap-friendly**: the `fetch` script and a local `make` pattern rule automatically populate `.makefiles/` with the modules you need, on first use.
-- **Config-aware**: modules can derive runtime paths from project config files (for example `codeception.yml` and `phpunit.xml`) and cache resolved values under `.makefiles/.cache/`.
+- **Config-aware**: modules can derive runtime paths from project config files (for example `codeception.yml` and `phpunit.xml`) and cache resolved values under `.makefiles/cache/`.
 - **Consistent**: every module file carries a `Last edited` header; module entry points load the shared root logic and helper fragments use the same guard convention, so targets behave the same way across projects.
 
 ## Architecture Decisions
 - **Module ownership over shared abstractions**: module-specific behavior belongs in the owning module directory (for example `modules/codeception/` and `modules/phpunit/`), not in shared core files.
 - **Discovery scripts are local to modules**: when a module needs config parsing, keep it in module-local scripts such as `modules/<module>/discover-paths.sh`.
-- **Resolved paths are cached once per run context**: modules write discovered runtime paths to `.makefiles/.cache/` and path-dependent targets reuse those files.
-- **Coverage target consistency is guaranteed by dependencies**: `coverage`, `coverage-open`, and `clean` depend on the same cache artifact so they operate on one resolved path.
+- **Resolved paths are cached once per run context**: modules write discovered runtime paths to `.makefiles/cache/` and path-dependent targets reuse those files.
+- **Coverage target consistency is guaranteed by dependencies**: `coverage` and `coverage-open` depend on the same cache artifact so they operate on one resolved path.
 - **Self-healing prerequisites at target runtime**: if a module runner binary is missing (for example `vendor/bin/codecept` or `vendor/bin/phpunit`), module prerequisites attempt `make composer install` before failing.
 - **Root stays generic**: shared dispatch and path infrastructure in `modules/Makefile` remains module-agnostic.
 
@@ -31,7 +31,7 @@ This repository hosts the canonical makefiles published at `https://darianbr.git
 ```
 
 3. Run `make <target>` as usual; the first invocation pulls the requested module into `.makefiles/modules/`. Subsequent runs skip the download.
-4. Add `.makefiles/` to your project's `.gitignore` — the cache is regenerated on demand and should not be committed.
+4. Add `.makefiles/` to your project's `.gitignore` — it is regenerated on demand and should not be committed.
 
 ## Usage Examples
 ### Composer-focused Project
@@ -43,7 +43,7 @@ This repository hosts the canonical makefiles published at `https://darianbr.git
 	curl -sf https://darianbr.github.io/makefiles/fetch | bash /dev/stdin $*
 ```
 
-`make install` runs Composer's install; `make clean` removes `vendor/` (only when `composer.lock` is present) and the `.makefiles/` cache.
+`make install` runs Composer's install; `make clean` removes `vendor/` (only when `composer.lock` is present) and `.makefiles/` (including `.makefiles/cache/`).
 
 ### Multi-module (Composer + Docker)
 ```makefile
@@ -88,8 +88,8 @@ Consequently, `make composer build` in a consumer using the current published
 composer module fails validation before running any recipe. For the currently
 published targets, scoped commands include `make composer install`,
 `make npm install`, and `make docker clean`. The npm install target runs
-`npm ci` against `package-lock.json` or `npm-shrinkwrap.json` without updating
-the lockfile.
+`npm ci` when `package-lock.json` or `npm-shrinkwrap.json` is present, and
+falls back to `npm install` when only `package.json` is present.
 
 Scoped validation errors are written to stderr and return status 2. An unknown
 module identifies the requested name and lists imported modules:
@@ -140,12 +140,12 @@ before the selected module target.
 
 | Module | Target | Behavior |
 |--------|--------|----------|
-| (root) | `clean::` | Removes the entire `.makefiles/` cache (including `tools/`); skips if the cache is absent. |
+| (root) | `clean::` | Removes `.makefiles/` (including `.makefiles/cache/`); skips when absent. |
 | codeception | `echopath::` | Diagnostic: prints the module name, resolved `MF_*` paths, Codeception executable, and coverage directory. |
 | codeception | `test::` | Runs the Composer-installed Codeception executable. |
 | codeception | `coverage::` | Runs Codeception with HTML coverage output in the path resolved from `codeception.yml` (`paths.output`) plus `/coverage` (fallback: `_output/coverage`). |
 | codeception | `coverage-open::` | Regenerates the HTML coverage report and opens it with `BROWSER`, `xdg-open`, or `open`. |
-| codeception | `clean::` | Removes the generated HTML coverage directory resolved from config (fallback `_output/coverage`), leaving other Codeception output intact. |
+| codeception | `clean::` | Removes Codeception suite artefacts: coverage output, support output, and main output directory (resolved from `codeception.yml`; fallbacks `_output/coverage`, `_support`, `_output`). |
 | composer | `install::` | Runs `composer install` in the project root. First provisions `composer.phar` into `.makefiles/tools/` (via `install-composer-binary`). |
 | composer | `clean::` | Removes `vendor/` — only when both `vendor/` and `composer.lock` exist; otherwise prints a skip message. |
 | composer | `echopath::` | Diagnostic: prints the module name and the resolved `MF_*` paths. |
@@ -153,14 +153,14 @@ before the selected module target.
 | docker | `echopath::` | Diagnostic: prints the module name and the resolved `MF_*` paths. |
 | docker | `clean::` | Stub: prints a line only. The docker module is a placeholder with no real targets yet. |
 | npm | `echopath::` | Diagnostic: prints the module name, resolved `MF_*` paths, and npm executable. |
-| npm | `install::` | Runs `npm ci` in the project root; requires `package.json` and `package-lock.json` or `npm-shrinkwrap.json`. Set `NPM` or `NPM_INSTALL_ARGS` to customize the command. |
+| npm | `install::` | Runs `npm ci` in the project root when `package-lock.json` or `npm-shrinkwrap.json` exists; otherwise runs `npm install` when only `package.json` is present. Set `NPM` or `NPM_INSTALL_ARGS` to customize the command. |
 | npm | `clean::` | Removes generated directories listed in `NPM_CLEAN_DIRS` (defaults: `node_modules`, `dist`, `build`, `coverage`, `.next`, `.nuxt`, `.output`); leaves source files and lockfiles untouched. |
 | phpunit | `echopath::` | Diagnostic: prints the module name, resolved `MF_*` paths, PHPUnit executable, and coverage directory. |
 | phpunit | `install-phpunit-binary` | Downloads the optional standalone PHPUnit PHAR into `.makefiles/tools/` (or `PHPUNIT_PHAR`). |
 | phpunit | `test::` | Runs the Composer-installed PHPUnit executable against the project test suite. |
 | phpunit | `coverage::` | Runs PHPUnit with `--coverage-html` and writes the report to the path resolved from `phpunit.xml` HTML report config (fallback: `coverage/`). |
 | phpunit | `coverage-open::` | Regenerates the HTML coverage report and opens `coverage/index.html` with `BROWSER`, `xdg-open`, or `open`. |
-| phpunit | `clean::` | Removes the generated HTML coverage directory resolved from config (fallback `coverage/`) without affecting other project data. |
+| phpunit | `clean::` | Removes PHPUnit suite artefacts: HTML coverage output (resolved from `phpunit.xml` or fallback `coverage/`), `.phpunit.cache`, and `.phpunit.result.cache`. |
 
 Aggregate-contributing targets use double-colon (`::`) so multiple modules can contribute to the same target name. `make clean` runs the shared root cleanup and the `clean::` recipes from every imported module that defines them, in import order; for the Composer + Docker example above, that is root + composer + docker. The Codeception, PHPUnit, and Composer clean recipes are independent and do not invoke one another.
 
@@ -171,7 +171,8 @@ Aggregate-contributing targets use double-colon (`::`) so multiple modules can c
 	- `modules/<module>/*.mk` – optional helper fragments (header + guard only, no root include).
 	- `modules/<module>/*.sh` – optional module-owned discovery helpers for config-derived paths.
   - `modules/manifest.txt` – lists every published file (one path per line); `fetch` uses it to know what to download.
-- `.makefiles/` – generated cache inside consuming projects. Holds three subtrees: `.makefiles/modules/` (the fetched makefiles, mirroring `modules/`), `.makefiles/tools/` (provisioned binaries, e.g. `composer.phar`), and `.makefiles/.cache/` (resolved runtime paths used by module targets).
+- `.makefiles/` – generated runtime folder inside consuming projects. Holds two subtrees: `.makefiles/modules/` (the fetched makefiles, mirroring `modules/`) and `.makefiles/tools/` (provisioned binaries, e.g. `composer.phar`).
+- `.makefiles/cache/` – generated project cache folder for resolved runtime paths used by module targets.
 - `fetch` – helper script that downloads the requested module **and the shared root Makefile** over HTTPS.
 - `CONTRIBUTIONS.md` – rules for adding or editing modules.
 
@@ -266,11 +267,11 @@ the opener for `coverage-open`. The module requires PHP and attempts to install
 Composer dependencies automatically when the Codeception executable is missing.
 
 Both Codeception and PHPUnit write their discovered coverage directories to
-cache files under `.makefiles/.cache/` so related targets (for example
-`coverage-open` and `clean`) use exactly the same resolved path:
+cache files under `.makefiles/cache/` so related coverage targets use exactly
+the same resolved path:
 
-- `.makefiles/.cache/codeception-coverage-dir`
-- `.makefiles/.cache/phpunit-coverage-dir`
+- `.makefiles/cache/codeception-coverage-dir`
+- `.makefiles/cache/phpunit-coverage-dir`
 
 ## Troubleshooting
 
@@ -282,6 +283,7 @@ cache files under `.makefiles/.cache/` so related targets (for example
 | `make install` fails: no `composer.json` | The composer module runs `composer install` in your project root, which requires a `composer.json` there. | Add a `composer.json` to the project root, or run the target from a directory that has one. |
 | `make phpunit install-phpunit-binary` fails | The standalone PHAR download URL is unavailable or invalid. | Check network access, or set `PHPUNIT_VERSION`/`PHPUNIT_URL` to a valid PHPUnit PHAR source. |
 | `[phpunit] PHP executable not found` or `[phpunit] PHPUnit executable not found` | PHP is not installed, or Composer has not installed `vendor/bin/phpunit`. | Install PHP and run `composer install`, or override `PHP`/`PHPUNIT` with paths available to the project. |
+| `No coverage driver detected` (phpunit/codeception coverage) | Neither `xdebug` nor `pcov` is enabled in the active PHP runtime. | Install/enable `xdebug` or `pcov`; for xdebug, use `XDEBUG_MODE=coverage` when running coverage targets. |
 | `[phpunit] Browser opener not found` or `No browser opener found` | `BROWSER`, `xdg-open`, and `open` are unavailable. | Install/configure a browser opener, set `BROWSER` to its executable, or open `coverage/index.html` manually. |
 
 **How the bootstrap works.** Your Makefile `-include`s the module file and defines a pattern rule for `.makefiles/modules/%/Makefile`. On the first run the module file is missing, so `make` runs the rule, which pipes `fetch` over `curl` to download the module (and the shared root Makefile) into `.makefiles/modules/`. `make` then re-reads the Makefile and continues with the real target. Later runs find the module file already present, so no download happens.

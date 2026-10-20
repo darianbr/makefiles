@@ -48,9 +48,11 @@ For the canonical invocation and compatibility contract, see
 [README.md — Aggregate and Module-Scoped Targets](../../README.md#aggregate-and-module-scoped-targets).
 
 When a module derives runtime paths from project config files, it should cache
-resolved values under `.makefiles/.cache/` and make path-dependent targets
-(such as `coverage`, `coverage-open`, and `clean`) depend on that cache file.
-This ensures all related targets use the same resolved path.
+resolved values under `.makefiles/cache/` and make path-dependent coverage
+targets (such as `coverage` and `coverage-open`) depend on that cache file.
+This ensures related coverage targets use the same resolved path. Keep module
+`clean` targets independent from cache-file prerequisites so base clean can
+remove generated folders without forcing `.makefiles/` recreation.
 
 ## Headers
 All module files under `modules/**/*` **must always** begin with a header as the first lines:

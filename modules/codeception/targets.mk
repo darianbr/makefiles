@@ -5,13 +5,21 @@
 #
 
 MF_CODECEPTION_PATH_DISCOVERY_SCRIPT := $(MF_MODULES_ROOT)codeception/discover-paths.sh
-MF_CODECEPTION_COVERAGE_CACHE := $(MF_MAKEFILES_ROOT).cache/codeception-coverage-dir
+MF_CODECEPTION_COVERAGE_CACHE_PATH := $(MF_CACHE_ROOT)codeception-coverage-dir
 MF_CODECEPTION_CONFIG_FILE := $(if $(wildcard $(MF_PROJECT_ROOT)codeception.yml),$(MF_PROJECT_ROOT)codeception.yml,(default fallback: _output/coverage))
 MF_CODECEPTION_CONFIG_DEP := $(wildcard $(MF_PROJECT_ROOT)codeception.yml)
 
 .PHONY: echopath test coverage coverage-open clean codeception-prerequisites codeception-ready
 
-$(MF_CODECEPTION_COVERAGE_CACHE): $(MF_CODECEPTION_PATH_DISCOVERY_SCRIPT) $(MF_CODECEPTION_CONFIG_DEP)
+$(MF_CODECEPTION_PATH_DISCOVERY_SCRIPT):
+	@echo "[codeception] refreshing cached module files"
+	@$(MAKE) --no-print-directory -B "$(MF_MODULES_ROOT)codeception/Makefile"
+	@if [ ! -f "$@" ]; then \
+		echo "[codeception] missing discovery script after refresh: $@" >&2; \
+		exit 1; \
+	fi
+
+$(MF_CODECEPTION_COVERAGE_CACHE_PATH): $(MF_CODECEPTION_PATH_DISCOVERY_SCRIPT) $(MF_CODECEPTION_CONFIG_DEP)
 	@mkdir -p "$(dir $@)"
 	@resolved=''; \
 	if [ -x "$(MF_CODECEPTION_PATH_DISCOVERY_SCRIPT)" ]; then \
@@ -22,7 +30,7 @@ $(MF_CODECEPTION_COVERAGE_CACHE): $(MF_CODECEPTION_PATH_DISCOVERY_SCRIPT) $(MF_C
 	fi; \
 	printf '%s\n' "$$resolved" > "$@"
 
-echopath:: $(MF_CODECEPTION_COVERAGE_CACHE)
+echopath:: $(MF_CODECEPTION_COVERAGE_CACHE_PATH)
 	@echo "Codeception module Makefile"
 	@echo "MF_PROJECT_ROOT: $(MF_PROJECT_ROOT)"
 	@echo "MF_MAKEFILES_ROOT: $(MF_MAKEFILES_ROOT)"
@@ -30,7 +38,7 @@ echopath:: $(MF_CODECEPTION_COVERAGE_CACHE)
 	@echo "MF_TOOLS_ROOT: $(MF_TOOLS_ROOT)"
 	@echo "CODECEPTION: $(CODECEPTION)"
 	@echo "CODECEPTION_CONFIG: $(MF_CODECEPTION_CONFIG_FILE)"
-	@coverage_dir=$$(cat "$(MF_CODECEPTION_COVERAGE_CACHE)"); echo "CODECEPTION_COVERAGE_DIR: $$coverage_dir"
+	@coverage_dir=$$(cat "$(MF_CODECEPTION_COVERAGE_CACHE_PATH)"); echo "CODECEPTION_COVERAGE_DIR: $$coverage_dir"
 	@echo ""
 
 codeception-prerequisites:
@@ -74,17 +82,34 @@ test:: codeception-ready
 		"$(CODECEPTION)" run $(CODECEPTION_ARGS); \
 	fi
 
-coverage:: codeception-ready $(MF_CODECEPTION_COVERAGE_CACHE)
-	@coverage_dir=$$(cat "$(MF_CODECEPTION_COVERAGE_CACHE)"); \
+coverage:: codeception-ready $(MF_CODECEPTION_COVERAGE_CACHE_PATH)
+	@coverage_dir=$$(cat "$(MF_CODECEPTION_COVERAGE_CACHE_PATH)"); \
+	if ! (cd "$(MF_PROJECT_ROOT)" && "$(PHP)" -m | grep -qiE '^(xdebug|pcov)$$'); then \
+		echo "[codeception] No coverage driver detected. Install and enable xdebug or pcov for line coverage." >&2; \
+		echo "[codeception] Hint: xdebug users may also need XDEBUG_MODE=coverage." >&2; \
+		if [ -n "$(MF_SCOPED_MODULE)" ]; then \
+			exit 1; \
+		fi; \
+		echo "[codeception] skipping coverage in aggregate mode"; \
+		exit 0; \
+	fi; \
 	cd "$(MF_PROJECT_ROOT)" && \
 	if [ -f "$(CODECEPTION)" ]; then \
-		"$(PHP)" "$(CODECEPTION)" run --coverage --coverage-html "$$coverage_dir" $(CODECEPTION_ARGS); \
+		if "$(PHP)" -m | grep -qi '^xdebug$$'; then \
+			XDEBUG_MODE=coverage "$(PHP)" "$(CODECEPTION)" run --coverage --coverage-html "$$coverage_dir" $(CODECEPTION_ARGS); \
+		else \
+			"$(PHP)" "$(CODECEPTION)" run --coverage --coverage-html "$$coverage_dir" $(CODECEPTION_ARGS); \
+		fi; \
 	else \
-		"$(CODECEPTION)" run --coverage --coverage-html "$$coverage_dir" $(CODECEPTION_ARGS); \
+		if "$(PHP)" -m | grep -qi '^xdebug$$'; then \
+			XDEBUG_MODE=coverage "$(CODECEPTION)" run --coverage --coverage-html "$$coverage_dir" $(CODECEPTION_ARGS); \
+		else \
+			"$(CODECEPTION)" run --coverage --coverage-html "$$coverage_dir" $(CODECEPTION_ARGS); \
+		fi; \
 	fi
 
 coverage-open:: coverage
-	@coverage_dir=$$(cat "$(MF_CODECEPTION_COVERAGE_CACHE)"); \
+	@coverage_dir=$$(cat "$(MF_CODECEPTION_COVERAGE_CACHE_PATH)"); \
 	if ! (cd "$(MF_PROJECT_ROOT)" && [ -f "$$coverage_dir/index.html" ]); then \
 		echo "[codeception] Coverage report was not generated: $$coverage_dir/index.html" >&2; \
 		exit 1; \
@@ -104,12 +129,41 @@ coverage-open:: coverage
 		exit 1; \
 	fi
 
-# Remove the generated HTML coverage report without touching other test output.
-clean:: $(MF_CODECEPTION_COVERAGE_CACHE)
-	@coverage_dir=$$(cat "$(MF_CODECEPTION_COVERAGE_CACHE)"); \
-	if [ -d "$$coverage_dir" ]; then \
-		echo "[codeception] removing coverage directory $$coverage_dir"; \
-		rm -rf "$$coverage_dir"; \
-	else \
-		echo "[codeception] coverage directory not found; skipping"; \
-	fi
+# Remove suite-generated Codeception directories. This clean path is intentionally
+# independent from discovery-cache prerequisites so base clean can delete
+# .makefiles without being recreated mid-run.
+clean::
+	@output_dir="_output"; \
+	support_dir="_support"; \
+	project_root="$(MF_PROJECT_ROOT)"; \
+	project_root=$${project_root%/}; \
+	remove_script="$(MF_MODULES_ROOT)core/remove-with-guardrails.sh"; \
+	if [ ! -f "$$remove_script" ] && [ -f "/tmp/mf-remove-with-guardrails.sh" ]; then \
+		remove_script="/tmp/mf-remove-with-guardrails.sh"; \
+	fi; \
+	if [ ! -f "$$remove_script" ]; then \
+		echo "[codeception] missing guardrails helper script" >&2; \
+		exit 1; \
+	fi; \
+	if [ -f "$(MF_PROJECT_ROOT)codeception.yml" ]; then \
+		configured_output=$$(grep -E '^[[:space:]]*output:[[:space:]]*' "$(MF_PROJECT_ROOT)codeception.yml" | head -n1 | cut -d: -f2- | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$$//' | tr -d '"' | tr -d "'"); \
+		configured_support=$$(grep -E '^[[:space:]]*support:[[:space:]]*' "$(MF_PROJECT_ROOT)codeception.yml" | head -n1 | cut -d: -f2- | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$$//' | tr -d '"' | tr -d "'"); \
+		if [ -n "$$configured_output" ]; then \
+			output_dir="$$configured_output"; \
+		fi; \
+		if [ -n "$$configured_support" ]; then \
+			support_dir="$$configured_support"; \
+		fi; \
+	fi; \
+	case "$$output_dir" in \
+		/*) ;; \
+		*) output_dir="$(MF_PROJECT_ROOT)$$output_dir" ;; \
+	esac; \
+	case "$$support_dir" in \
+		/*) ;; \
+		*) support_dir="$(MF_PROJECT_ROOT)$$support_dir" ;; \
+	esac; \
+	coverage_dir="$$output_dir/coverage"; \
+	sh "$$remove_script" "$$project_root" codeception dir "$$coverage_dir"; \
+	sh "$$remove_script" "$$project_root" codeception dir "$$support_dir"; \
+	sh "$$remove_script" "$$project_root" codeception dir "$$output_dir"

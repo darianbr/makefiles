@@ -15,7 +15,8 @@ echopath::
 	@echo "NPM: $(NPM)"
 	@echo ""
 
-# npm ci consumes the existing npm lockfile without updating it.
+# Prefer npm ci for lockfile-driven installs; fall back to npm install when
+# only package.json is present so first-time projects can bootstrap.
 install::
 	@if ! (cd "$(MF_PROJECT_ROOT)" && command -v "$(NPM)" >/dev/null 2>&1); then \
 		echo "[npm] npm executable not found: $(NPM)" >&2; \
@@ -23,21 +24,23 @@ install::
 	elif [ ! -f "$(MF_PROJECT_ROOT)package.json" ]; then \
 		echo "[npm] package.json not found in $(MF_PROJECT_ROOT)" >&2; \
 		exit 1; \
-	elif [ ! -f "$(MF_PROJECT_ROOT)package-lock.json" ] && [ ! -f "$(MF_PROJECT_ROOT)npm-shrinkwrap.json" ]; then \
-		echo "[npm] package-lock.json or npm-shrinkwrap.json is required; refusing to change dependency resolution" >&2; \
-		exit 1; \
 	else \
-		echo "[npm] install target invoked (npm ci)"; \
-		cd "$(MF_PROJECT_ROOT)" && "$(NPM)" ci $(NPM_INSTALL_ARGS); \
+		if [ -f "$(MF_PROJECT_ROOT)package-lock.json" ] || [ -f "$(MF_PROJECT_ROOT)npm-shrinkwrap.json" ]; then \
+			echo "[npm] install target invoked (npm ci)"; \
+			cd "$(MF_PROJECT_ROOT)" && "$(NPM)" ci $(NPM_INSTALL_ARGS); \
+		else \
+			echo "[npm] no lockfile found; install target invoked (npm install)"; \
+			cd "$(MF_PROJECT_ROOT)" && "$(NPM)" install $(NPM_INSTALL_ARGS); \
+		fi; \
 	fi
 
 # Remove conventional generated dependency/build directories only. Lockfiles
 # and source files are not part of this list and are left untouched.
 clean::
 	@cd "$(MF_PROJECT_ROOT)" && \
-	for artifact in $(NPM_CLEAN_DIRS); do \
-		if [ -d "$$artifact" ]; then \
-			echo "[npm] removing $$artifact"; \
-			rm -rf -- "$$artifact"; \
+	for artefact in $(NPM_CLEAN_DIRS); do \
+		if [ -d "$$artefact" ]; then \
+			echo "[npm] removing $$artefact"; \
+			rm -rf -- "$$artefact"; \
 		fi; \
 	done

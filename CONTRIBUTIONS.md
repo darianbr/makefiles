@@ -87,9 +87,11 @@ is not suitable; coverage output paths are discovered from `phpunit.xml` and
 fall back to `coverage/`.
 
 Codeception and PHPUnit discover coverage paths with module-local scripts and
-persist resolved values to `.makefiles/.cache/`. Path-dependent targets such as
-`coverage`, `coverage-open`, and `clean` should depend on the same cache file
-to guarantee consistent behavior within a run.
+persist resolved values to `.makefiles/cache/`. Path-dependent targets such as
+`coverage` and `coverage-open` should depend on the same cache file to
+guarantee consistent behavior within a run. Keep module `clean` targets
+independent from cache-file prerequisites so base clean can remove generated
+folders without rehydrating `.makefiles/` mid-run.
 
 The exact two-goal form is reserved for scoped dispatch. Unknown modules and
 targets fail before recipes run, print an actionable message to stderr, and
