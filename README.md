@@ -7,13 +7,13 @@ This repository hosts the canonical makefiles published at `https://darianbr.git
 ## Overview
 - **Modular**: each module under `modules/` exposes its own `Makefile` plus optional helper `.mk` fragments.
 - **Bootstrap-friendly**: the `fetch` script and a local `make` pattern rule automatically populate `.makefiles/` with the modules you need, on first use.
-- **Config-aware**: modules can derive runtime paths from project config files (for example `codeception.yml` and `phpunit.xml`) and cache resolved values under `MF_CACHE_ROOT`.
+- **Config-aware**: modules can derive runtime paths from project config files (for example `codeception.yml` and `phpunit.xml`) and cache resolved values under `.makefiles/cache/`.
 - **Consistent**: every module file carries a `Last edited` header; module entry points load the shared root logic and helper fragments use the same guard convention, so targets behave the same way across projects.
 
 ## Architecture Decisions
 - **Module ownership over shared abstractions**: module-specific behavior belongs in the owning module directory (for example `modules/codeception/` and `modules/phpunit/`), not in shared core files.
 - **Discovery scripts are local to modules**: when a module needs config parsing, keep it in module-local scripts such as `modules/<module>/discover-paths.sh`.
-- **Resolved paths are cached once per run context**: modules write discovered runtime paths to `MF_CACHE_ROOT` and path-dependent targets reuse those files.
+- **Resolved paths are cached once per run context**: modules write discovered runtime paths to `.makefiles/cache/` and path-dependent targets reuse those files.
 - **Coverage target consistency is guaranteed by dependencies**: `coverage` and `coverage-open` depend on the same cache artifact so they operate on one resolved path.
 - **Self-healing prerequisites at target runtime**: if a module runner binary is missing (for example `vendor/bin/codecept` or `vendor/bin/phpunit`), module prerequisites attempt `make composer install` before failing.
 - **Root stays generic**: shared dispatch and path infrastructure in `modules/Makefile` remains module-agnostic.
@@ -31,28 +31,7 @@ This repository hosts the canonical makefiles published at `https://darianbr.git
 ```
 
 3. Run `make <target>` as usual; the first invocation pulls the requested module into `.makefiles/modules/`. Subsequent runs skip the download.
-4. Add `.makefiles/` and your selected cache root to `.gitignore` — these folders are regenerated on demand and should not be committed. With default settings, ignore `.cache/makefiles/`.
-
-### Cache Root (`MF_CACHE_ROOT`)
-
-Runtime cache files are written to `MF_CACHE_ROOT`, resolved with this precedence:
-
-1. `MF_CACHE_ROOT` (if explicitly set)
-2. `$XDG_CACHE_HOME/makefiles/` (when `XDG_CACHE_HOME` is set)
-3. `.cache/makefiles/` under the project root (default fallback)
-
-Examples:
-
-```sh
-# Use project-local default
-make test
-
-# Use XDG cache root
-XDG_CACHE_HOME="$HOME/.cache" make test
-
-# Override directly
-MF_CACHE_ROOT="$(pwd)/.cache/custom-makefiles/" make test
-```
+4. Add `.makefiles/` to your project's `.gitignore` — it is regenerated on demand and should not be committed.
 
 ## Usage Examples
 ### Composer-focused Project
@@ -64,7 +43,7 @@ MF_CACHE_ROOT="$(pwd)/.cache/custom-makefiles/" make test
 	curl -sf https://darianbr.github.io/makefiles/fetch | bash /dev/stdin $*
 ```
 
-`make install` runs Composer's install; `make clean` removes `vendor/` (only when `composer.lock` is present), `.makefiles/`, and `.cache/makefiles/`.
+`make install` runs Composer's install; `make clean` removes `vendor/` (only when `composer.lock` is present) and `.makefiles/` (including `.makefiles/cache/`).
 
 ### Multi-module (Composer + Docker)
 ```makefile
@@ -161,7 +140,7 @@ before the selected module target.
 
 | Module | Target | Behavior |
 |--------|--------|----------|
-| (root) | `clean::` | Removes `.makefiles/` and `MF_CACHE_ROOT`; skips each location when absent. |
+| (root) | `clean::` | Removes `.makefiles/` (including `.makefiles/cache/`); skips when absent. |
 | codeception | `echopath::` | Diagnostic: prints the module name, resolved `MF_*` paths, Codeception executable, and coverage directory. |
 | codeception | `test::` | Runs the Composer-installed Codeception executable. |
 | codeception | `coverage::` | Runs Codeception with HTML coverage output in the path resolved from `codeception.yml` (`paths.output`) plus `/coverage` (fallback: `_output/coverage`). |
@@ -193,7 +172,7 @@ Aggregate-contributing targets use double-colon (`::`) so multiple modules can c
 	- `modules/<module>/*.sh` – optional module-owned discovery helpers for config-derived paths.
   - `modules/manifest.txt` – lists every published file (one path per line); `fetch` uses it to know what to download.
 - `.makefiles/` – generated runtime folder inside consuming projects. Holds two subtrees: `.makefiles/modules/` (the fetched makefiles, mirroring `modules/`) and `.makefiles/tools/` (provisioned binaries, e.g. `composer.phar`).
-- `MF_CACHE_ROOT` (defaults to `.cache/makefiles/`) – generated project cache folder for resolved runtime paths used by module targets.
+- `.makefiles/cache/` – generated project cache folder for resolved runtime paths used by module targets.
 - `fetch` – helper script that downloads the requested module **and the shared root Makefile** over HTTPS.
 - `CONTRIBUTIONS.md` – rules for adding or editing modules.
 
@@ -288,11 +267,11 @@ the opener for `coverage-open`. The module requires PHP and attempts to install
 Composer dependencies automatically when the Codeception executable is missing.
 
 Both Codeception and PHPUnit write their discovered coverage directories to
-cache files under `MF_CACHE_ROOT` so related coverage targets use exactly the
-same resolved path. With default settings, this is `.cache/makefiles/`:
+cache files under `.makefiles/cache/` so related coverage targets use exactly
+the same resolved path:
 
-- `.cache/makefiles/codeception-coverage-dir`
-- `.cache/makefiles/phpunit-coverage-dir`
+- `.makefiles/cache/codeception-coverage-dir`
+- `.makefiles/cache/phpunit-coverage-dir`
 
 ## Troubleshooting
 
