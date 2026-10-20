@@ -18,6 +18,8 @@ COMPOSER := $(MF_TOOLS_ROOT)composer.phar
 MF_COMPOSER_EMPTY :=
 MF_COMPOSER_SPACE := $(MF_COMPOSER_EMPTY) $(MF_COMPOSER_EMPTY)
 MF_COMPOSER_TARGET := $(subst $(MF_COMPOSER_SPACE),\$(MF_COMPOSER_SPACE),$(COMPOSER))
+MF_COMPOSER_STALE_MODE ?= auto
+MF_COMPOSER_INSTALL_STAMP ?= $(MF_PROJECT_ROOT)vendor/.mf-install.stamp
 
 -include .makefiles/modules/composer/install-binary.mk
 -include .makefiles/modules/composer/targets.mk

@@ -10,7 +10,7 @@ MF_PHPUNIT_COVERAGE_INDEX_CACHE_PATH := $(MF_CACHE_ROOT)phpunit-coverage-index
 MF_PHPUNIT_CONFIG_FILE := $(if $(wildcard $(MF_PROJECT_ROOT)phpunit.xml),$(MF_PROJECT_ROOT)phpunit.xml,(default fallback: coverage))
 MF_PHPUNIT_CONFIG_DEP := $(wildcard $(MF_PROJECT_ROOT)phpunit.xml)
 
-.PHONY: echopath test coverage coverage-open clean phpunit-prerequisites install-phpunit-binary
+.PHONY: echopath test coverage coverage-open clean phpunit-prerequisites install-phpunit-binary phpunit-dependencies
 
 $(MF_PHPUNIT_PATH_DISCOVERY_SCRIPT):
 	@echo "[phpunit] refreshing cached module files"
@@ -42,7 +42,12 @@ echopath:: $(MF_PHPUNIT_COVERAGE_CACHE_PATH)
 	@coverage_dir=$$(cat "$(MF_PHPUNIT_COVERAGE_CACHE_PATH)"); echo "PHPUNIT_COVERAGE_DIR: $$coverage_dir"
 	@echo ""
 
-phpunit-prerequisites:
+phpunit-dependencies:
+	@if [ -f "$(MF_MODULES_ROOT)composer/Makefile" ]; then \
+		$(MAKE) --no-print-directory composer install || exit $$?; \
+	fi
+
+phpunit-prerequisites: phpunit-dependencies
 	@if ! (cd "$(MF_PROJECT_ROOT)" && command -v "$(PHP)" >/dev/null 2>&1); then \
 		echo "[phpunit] PHP executable not found: $(PHP)" >&2; \
 		echo "[phpunit] Install PHP or invoke make with PHP=/path/to/php." >&2; \
@@ -51,12 +56,7 @@ phpunit-prerequisites:
 	@if cd "$(MF_PROJECT_ROOT)" && { [ -f "$(PHPUNIT)" ] || command -v "$(PHPUNIT)" >/dev/null 2>&1; }; then \
 		:; \
 	else \
-		echo "[phpunit] PHPUnit executable not found; attempting Composer install."; \
-		if [ -f "$(MF_MODULES_ROOT)composer/Makefile" ]; then \
-			$(MAKE) --no-print-directory composer install || exit $$?; \
-		else \
-			$(MAKE) --no-print-directory install || exit $$?; \
-		fi; \
+		echo "[phpunit] PHPUnit executable not found after dependency install: $(PHPUNIT)" >&2; \
 		if cd "$(MF_PROJECT_ROOT)" && { [ -f "$(PHPUNIT)" ] || command -v "$(PHPUNIT)" >/dev/null 2>&1; }; then \
 			:; \
 		else \

@@ -15,7 +15,7 @@ This repository hosts the canonical makefiles published at `https://darianbr.git
 - **Discovery scripts are local to modules**: when a module needs config parsing, keep it in module-local scripts such as `modules/<module>/discover-paths.sh`.
 - **Resolved paths are cached once per run context**: modules write discovered runtime paths to `.makefiles/cache/` and path-dependent targets reuse those files.
 - **Coverage target consistency is guaranteed by dependencies**: `coverage` and `coverage-open` depend on the same cache artifact so they operate on one resolved path.
-- **Self-healing prerequisites at target runtime**: if a module runner binary is missing (for example `vendor/bin/codecept` or `vendor/bin/phpunit`), module prerequisites attempt `make composer install` before failing.
+- **Dependency freshness via native Make timestamps**: npm/composer install targets write install stamp files and declare manifests/lockfiles as prerequisites, so stale dependencies trigger automatic reinstall before test/build targets run.
 - **Root stays generic**: shared dispatch and path infrastructure in `modules/Makefile` remains module-agnostic.
 
 ## Getting Started
@@ -101,8 +101,11 @@ Consequently, `make composer build` in a consumer using the current published
 composer module fails validation before running any recipe. For the currently
 published targets, scoped commands include `make composer install`,
 `make npm install`, and `make docker clean`. The npm install target runs
-`npm ci` when `package-lock.json` or `npm-shrinkwrap.json` is present, and
-falls back to `npm install` when only `package.json` is present.
+`npm ci` when a lockfile is present, and falls back to `npm install` when only
+`package.json` is present. Both npm and composer install targets use native
+Make timestamp dependencies with install stamp files, so changes to
+`package.json`, `package-lock.json`, `npm-shrinkwrap.json`, `composer.json`, or
+`composer.lock` automatically trigger a reinstall.
 
 Scoped validation errors are written to stderr and return status 2. An unknown
 module identifies the requested name and lists imported modules:
@@ -159,14 +162,14 @@ before the selected module target.
 | codeception | `coverage::` | Runs Codeception with HTML coverage output in the path resolved from `codeception.yml` (`paths.output`) plus `/coverage` (fallback: `_output/coverage`). |
 | codeception | `coverage-open::` | Regenerates the HTML coverage report and opens it with `BROWSER`, `xdg-open`, or `open`. |
 | codeception | `clean::` | Removes Codeception suite artefacts: coverage output, support output, and main output directory (resolved from `codeception.yml`; fallbacks `_output/coverage`, `_support`, `_output`). |
-| composer | `install::` | Runs `composer install` in the project root. First provisions `composer.phar` into `.makefiles/tools/` (via `install-composer-binary`). |
+| composer | `install::` | Runs `composer install` in the project root. First provisions `composer.phar` into `.makefiles/tools/` (via `install-composer-binary`). Uses `vendor/.mf-install.stamp` with `composer.json` and `composer.lock` prerequisites for stale detection. Set `MF_COMPOSER_STALE_MODE=auto|warn|fail` to control lock drift handling when `composer.json` is newer than `composer.lock`. |
 | composer | `clean::` | Removes `vendor/` — only when both `vendor/` and `composer.lock` exist; otherwise prints a skip message. |
 | composer | `echopath::` | Diagnostic: prints the module name and the resolved `MF_*` paths. |
 | composer | `install-composer-binary` | Downloads the Composer installer, verifies its SHA-384 signature, and installs `composer.phar` into `.makefiles/tools/`. |
 | docker | `echopath::` | Diagnostic: prints the module name and the resolved `MF_*` paths. |
 | docker | `clean::` | Stub: prints a line only. The docker module is a placeholder with no real targets yet. |
 | npm | `echopath::` | Diagnostic: prints the module name, resolved `MF_*` paths, and npm executable. |
-| npm | `install::` | Runs `npm ci` in the project root when `package-lock.json` or `npm-shrinkwrap.json` exists; otherwise runs `npm install` when only `package.json` is present. Set `NPM` or `NPM_INSTALL_ARGS` to customize the command. |
+| npm | `install::` | Runs `npm ci` in the project root when `package-lock.json` or `npm-shrinkwrap.json` exists; otherwise runs `npm install` when only `package.json` is present. Uses `node_modules/.mf-install.stamp` with manifest/lockfile prerequisites for stale detection. Set `NPM`, `NPM_INSTALL_ARGS`, or `MF_NPM_STALE_MODE=auto|warn|fail` to customize behavior when `package.json` is newer than the lockfile. |
 | npm | `clean::` | Removes generated directories listed in `NPM_CLEAN_DIRS` (defaults: `node_modules`, `dist`, `build`, `coverage`, `.next`, `.nuxt`, `.output`); leaves source files and lockfiles untouched. |
 | phpunit | `echopath::` | Diagnostic: prints the module name, resolved `MF_*` paths, PHPUnit executable, and coverage directory. |
 | phpunit | `install-phpunit-binary` | Downloads the optional standalone PHPUnit PHAR into `.makefiles/tools/` (or `PHPUNIT_PHAR`). |

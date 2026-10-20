@@ -10,7 +10,7 @@ MF_CODECEPTION_COVERAGE_INDEX_CACHE_PATH := $(MF_CACHE_ROOT)codeception-coverage
 MF_CODECEPTION_CONFIG_FILE := $(if $(wildcard $(MF_PROJECT_ROOT)codeception.yml),$(MF_PROJECT_ROOT)codeception.yml,(default fallback: _output/coverage))
 MF_CODECEPTION_CONFIG_DEP := $(wildcard $(MF_PROJECT_ROOT)codeception.yml)
 
-.PHONY: echopath test coverage coverage-open clean codeception-prerequisites codeception-ready
+.PHONY: echopath test coverage coverage-open clean codeception-prerequisites codeception-ready codeception-dependencies
 
 $(MF_CODECEPTION_PATH_DISCOVERY_SCRIPT):
 	@echo "[codeception] refreshing cached module files"
@@ -42,7 +42,12 @@ echopath:: $(MF_CODECEPTION_COVERAGE_CACHE_PATH)
 	@coverage_dir=$$(cat "$(MF_CODECEPTION_COVERAGE_CACHE_PATH)"); echo "CODECEPTION_COVERAGE_DIR: $$coverage_dir"
 	@echo ""
 
-codeception-prerequisites:
+codeception-dependencies:
+	@if [ -f "$(MF_MODULES_ROOT)composer/Makefile" ]; then \
+		$(MAKE) --no-print-directory composer install || exit $$?; \
+	fi
+
+codeception-prerequisites: codeception-dependencies
 	@if ! (cd "$(MF_PROJECT_ROOT)" && command -v "$(PHP)" >/dev/null 2>&1); then \
 		echo "[codeception] PHP executable not found: $(PHP)" >&2; \
 		echo "[codeception] Install PHP or invoke make with PHP=/path/to/php." >&2; \
@@ -51,12 +56,7 @@ codeception-prerequisites:
 	@if cd "$(MF_PROJECT_ROOT)" && { [ -f "$(CODECEPTION)" ] || command -v "$(CODECEPTION)" >/dev/null 2>&1; }; then \
 		:; \
 	else \
-		echo "[codeception] Codeception executable not found; attempting Composer install."; \
-		if [ -f "$(MF_MODULES_ROOT)composer/Makefile" ]; then \
-			$(MAKE) --no-print-directory composer install || exit $$?; \
-		else \
-			$(MAKE) --no-print-directory install || exit $$?; \
-		fi; \
+		echo "[codeception] Codeception executable not found after dependency install: $(CODECEPTION)" >&2; \
 		if cd "$(MF_PROJECT_ROOT)" && { [ -f "$(CODECEPTION)" ] || command -v "$(CODECEPTION)" >/dev/null 2>&1; }; then \
 			:; \
 		else \

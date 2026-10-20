@@ -4,6 +4,9 @@
 # Description: Composer module target recipes.
 #
 
+MF_COMPOSER_LOCKFILE := $(wildcard $(MF_PROJECT_ROOT)composer.lock)
+MF_COMPOSER_INSTALL_STAMP_DEPS := $(MF_PROJECT_ROOT)composer.json $(MF_COMPOSER_LOCKFILE)
+
 .PHONY: echopath install clean install-composer-binary
 
 echopath::
@@ -14,9 +17,42 @@ echopath::
 	@echo "MF_TOOLS_ROOT: $(MF_TOOLS_ROOT)"
 	@echo ""
 
-install:: $(MF_COMPOSER_TARGET)
-	@echo "[composer] install target invoked"
-	"$(PHP)" "$(COMPOSER)" install --working-dir="$(MF_PROJECT_ROOT)"
+install:: $(MF_COMPOSER_TARGET) $(MF_COMPOSER_INSTALL_STAMP)
+	@echo "[composer] install target up to date"
+
+# Install dependencies when composer manifests/lockfiles are newer than the
+# install stamp. This uses Make's native timestamp tracking for stale detection.
+$(MF_COMPOSER_INSTALL_STAMP): $(MF_COMPOSER_INSTALL_STAMP_DEPS)
+	@if [ ! -f "$(MF_PROJECT_ROOT)composer.json" ]; then \
+		echo "[composer] composer.json not found in $(MF_PROJECT_ROOT)" >&2; \
+		exit 1; \
+	fi
+	@lockfile="$(MF_PROJECT_ROOT)composer.lock"; \
+	if [ -f "$$lockfile" ] && [ "$(MF_PROJECT_ROOT)composer.json" -nt "$$lockfile" ]; then \
+		case "$(MF_COMPOSER_STALE_MODE)" in \
+		fail) \
+			echo "[composer] composer.json is newer than composer.lock" >&2; \
+			echo "[composer] stale policy is fail. Run composer update --lock to refresh lockfile." >&2; \
+			exit 1; \
+			;; \
+		warn) \
+			echo "[composer] warning: composer.json is newer than composer.lock" >&2; \
+			echo "[composer] continuing with composer install due to MF_COMPOSER_STALE_MODE=warn" >&2; \
+			;; \
+		auto) \
+			echo "[composer] composer.json is newer than composer.lock; refreshing lockfile"; \
+			"$(PHP)" "$(COMPOSER)" update --lock --working-dir="$(MF_PROJECT_ROOT)"; \
+			;; \
+		*) \
+			echo "[composer] unknown MF_COMPOSER_STALE_MODE='$(MF_COMPOSER_STALE_MODE)' (expected auto|warn|fail)" >&2; \
+			exit 1; \
+			;; \
+		esac; \
+	fi; \
+	echo "[composer] install target invoked"; \
+	"$(PHP)" "$(COMPOSER)" install --working-dir="$(MF_PROJECT_ROOT)"; \
+	mkdir -p "$(dir $(MF_COMPOSER_INSTALL_STAMP))"; \
+	touch "$(MF_COMPOSER_INSTALL_STAMP)"
 
 # Clean vendor directory if it exists.
 clean::

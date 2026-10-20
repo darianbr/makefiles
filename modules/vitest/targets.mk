@@ -4,9 +4,14 @@
 # Description: Vitest module target recipes.
 #
 
-.PHONY: echopath test coverage coverage-open clean vitest-prerequisites
+.PHONY: echopath test coverage coverage-open clean vitest-prerequisites vitest-dependencies
 
-vitest-prerequisites:
+vitest-dependencies:
+	@if [ -f "$(MF_MODULES_ROOT)npm/Makefile" ]; then \
+		$(MAKE) --no-print-directory npm install || exit $$?; \
+	fi
+
+vitest-prerequisites: vitest-dependencies
 	@if ! (cd "$(MF_PROJECT_ROOT)" && command -v "$(NPM)" >/dev/null 2>&1); then \
 		echo "[vitest] npm executable not found: $(NPM)" >&2; \
 		exit 1; \
@@ -16,12 +21,7 @@ vitest-prerequisites:
 	elif [ -f "$(VITEST_BIN)" ] || (cd "$(MF_PROJECT_ROOT)" && command -v vitest >/dev/null 2>&1); then \
 		:; \
 	else \
-		echo "[vitest] Vitest executable not found; attempting npm install."; \
-		if [ -f "$(MF_MODULES_ROOT)npm/Makefile" ]; then \
-			$(MAKE) --no-print-directory npm install || exit $$?; \
-		else \
-			$(MAKE) --no-print-directory install || exit $$?; \
-		fi; \
+		echo "[vitest] Vitest executable not found after dependency install: $(VITEST_BIN)" >&2; \
 		if [ -f "$(VITEST_BIN)" ] || (cd "$(MF_PROJECT_ROOT)" && command -v vitest >/dev/null 2>&1); then \
 			:; \
 		else \

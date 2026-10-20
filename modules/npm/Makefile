@@ -16,6 +16,8 @@ $(eval $(call mf_register_module,$(MF_CURRENT_MODULE_ENTRY),echopath install cle
 NPM ?= npm
 NPM_INSTALL_ARGS ?=
 NPM_CLEAN_DIRS ?= node_modules dist build coverage .next .nuxt .output
+MF_NPM_STALE_MODE ?= auto
+MF_NPM_INSTALL_STAMP ?= $(MF_PROJECT_ROOT)node_modules/.mf-install.stamp
 
 -include .makefiles/modules/npm/targets.mk
 

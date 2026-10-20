@@ -4,9 +4,14 @@
 # Description: TypeScript module target recipes.
 #
 
-.PHONY: echopath build test clean typescript-prerequisites
+.PHONY: echopath build test clean typescript-prerequisites typescript-dependencies
 
-typescript-prerequisites:
+typescript-dependencies:
+	@if [ -f "$(MF_MODULES_ROOT)npm/Makefile" ]; then \
+		$(MAKE) --no-print-directory npm install || exit $$?; \
+	fi
+
+typescript-prerequisites: typescript-dependencies
 	@if ! (cd "$(MF_PROJECT_ROOT)" && command -v "$(NPM)" >/dev/null 2>&1); then \
 		echo "[typescript] npm executable not found: $(NPM)" >&2; \
 		exit 1; \
@@ -19,12 +24,7 @@ typescript-prerequisites:
 	elif [ -f "$(TSC)" ] || (cd "$(MF_PROJECT_ROOT)" && command -v tsc >/dev/null 2>&1); then \
 		:; \
 	else \
-		echo "[typescript] TypeScript executable not found; attempting npm install."; \
-		if [ -f "$(MF_MODULES_ROOT)npm/Makefile" ]; then \
-			$(MAKE) --no-print-directory npm install || exit $$?; \
-		else \
-			$(MAKE) --no-print-directory install || exit $$?; \
-		fi; \
+		echo "[typescript] TypeScript executable not found after dependency install: $(TSC)" >&2; \
 		if [ -f "$(TSC)" ] || (cd "$(MF_PROJECT_ROOT)" && command -v tsc >/dev/null 2>&1); then \
 			:; \
 		else \
