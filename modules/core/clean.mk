@@ -16,4 +16,11 @@ clean::
 	else \
 		echo "[base] skipping makefiles folder (not found)"; \
 	fi
+	@if [ -d "$(MF_CACHE_ROOT)" ]; then \
+		echo "[base] clean cache folder"; \
+		rm -rf "$(MF_CACHE_ROOT)"; \
+	else \
+		echo "[base] skipping cache folder (not found)"; \
+	fi
+	@rmdir "$(MF_PROJECT_ROOT).cache" 2>/dev/null || true
 endif
