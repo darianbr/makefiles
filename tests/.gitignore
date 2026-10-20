@@ -1,0 +1,7 @@
+/.makefiles/
+/node_modules/
+/vendor/
+/.phpunit.cache/
+/_output/
+/coverage/
+/_support/

@@ -5,18 +5,24 @@
 
 # Contributing to `modules/`
 
-The `modules/` directory ships the canonical GNU Make modules published for downstream consumers. This guide translates the enforcement rules from [.github/instructions/makefile-consistency.instructions.md](.github/instructions/makefile-consistency.instructions.md) into a practical workflow.
+The `modules/` directory ships the canonical GNU Make modules published for downstream consumers. This guide translates the enforcement rules from [.github/instructions/makefile-consistency.instructions.md](.github/instructions/makefile-consistency.instructions.md) into a practical workflow. The canonical command and compatibility reference is [README.md — Aggregate and Module-Scoped Targets](README.md#aggregate-and-module-scoped-targets).
 
 ## 1. Mental Model
 
 ```
 modules/
-  ├── Makefile            (root: shared variables, guards, helpers)
+  ├── Makefile            (root: shared variables, dispatch, helpers)
   ├── manifest.txt        (lists every published file; fetch reads this)
-  ├── composer/.          (Composer module adding targets such as make intall -> composer install)
+  ├── composer/.          (Composer module adding targets such as make install -> composer install)
   │     ├── Makefile      (module entry point → includes root Makefile)
   │     └── *.mk          (helper fragments → header + guard only)
-  ├── docker/             (Docker module adding targets such as make docker -> docker build)
+  │     └── *.sh          (optional module-owned helper scripts)
+  ├── phpunit/            (PHPUnit test and HTML coverage targets)
+  │     ├── Makefile
+  │     └── install-binary.mk (optional standalone PHPUnit PHAR installer)
+  ├── docker/             (Docker module placeholder: echopath diagnostic + stub clean; no real targets yet)
+  │     └── Makefile
+  ├── npm/                (npm dependency installation and generated-artifact cleanup)
   │     └── Makefile
   └── <module>/
 		├── Makefile
@@ -27,6 +33,71 @@ modules/
 - **Manifest** (`modules/manifest.txt`): one path per line (relative to `modules/`) for every file that `fetch` may download. The `fetch` script always pulls the root `Makefile` plus every line that starts with the requested module's name.
 - **Module Makefile** (`modules/<module>/Makefile`): exports entry targets (`install`, `clean`, etc.) and must include the root immediately after its header.
 - **Helper fragments** (`modules/<module>/*.mk`): provide optional targets and must *not* include the root directly; they rely on the module Makefile to do so.
+- **Module scripts** (`modules/<module>/*.sh`): optional module-owned helpers (for example config path discovery). Keep them module-local; avoid module-specific logic in core.
+
+### Aggregate and module-scoped invocation
+
+Consumers can use either of these forms:
+
+- `make <target>` is aggregate mode. It runs the target contribution from
+  every imported module that defines it, plus any shared root contribution,
+  preserving normal GNU Make import order.
+- `make <module> <target>` is scoped mode. It runs only the named imported
+  module's target. The module must be explicitly included by the consumer;
+  a cached but unreferenced module is not eligible for dispatch.
+
+For example, when a consumer imports npm and composer modules that both expose
+`build`:
+
+```console
+make build          # npm build, then composer build (aggregate)
+make npm build      # npm build only
+make composer build # composer build only
+```
+
+Every public module target must be available under its module namespace using
+the `make <module> <target>` pattern. The module name is the directory name
+under `modules/`; do not invent aliases or encode the namespace into the
+target name. For example, `modules/phpunit/Makefile` exposes its `test` target
+as `make phpunit test`.
+
+Register public targets in the module entry Makefile immediately after the
+shared root include and guard. The root derives the namespace from the entry
+file path; keep the public target list current when adding, renaming, or
+removing targets. Include public targets defined in helper `.mk` files, but
+omit private prerequisites. For example:
+
+```make
+MF_CURRENT_MODULE_ENTRY := $(lastword $(filter %/modules/<module>/Makefile,$(MAKEFILE_LIST)))
+$(eval $(call mf_register_module,$(MF_CURRENT_MODULE_ENTRY),echopath test coverage coverage-open))
+```
+
+Define the actual recipes in the module or its included helpers. For a target
+that should also participate in aggregate `make <target>` behavior alongside
+other modules, use GNU Make's double-colon rule (`target::`); scoped invocation
+selects only the chosen module's registered implementation. The current
+composer module does not expose `build`, so `make composer build` is rejected
+until composer defines and registers that public target.
+
+The PHPUnit module registers `echopath`, `test`, `coverage`, `coverage-open`, and
+`install-phpunit-binary`. It uses the consuming project's Composer-installed
+`vendor/bin/phpunit` by default; the standalone PHAR installer is opt-in and
+does not replace that executable. Set `BROWSER` when the default browser opener
+is not suitable; coverage output paths are discovered from `phpunit.xml` and
+fall back to `coverage/`.
+
+Codeception and PHPUnit discover coverage paths with module-local scripts and
+persist resolved values to `.makefiles/.cache/`. Path-dependent targets such as
+`coverage`, `coverage-open`, and `clean` should depend on the same cache file
+to guarantee consistent behavior within a run.
+
+The exact two-goal form is reserved for scoped dispatch. Unknown modules and
+targets fail before recipes run, print an actionable message to stderr, and
+return status 2. One-goal aggregate calls and calls with more than two goals
+retain their existing GNU Make interpretation. A consumer that must retain
+the old two-goal GNU Make interpretation can set `MF_LEGACY_GOALS=1`. See the
+[canonical README build guidance](README.md#aggregate-and-module-scoped-targets)
+for the full invocation contract and examples.
 
 ## 2. Required Header + Guard
 Every file under `modules/**/*` starts with the same header, no blank lines before it. The guard placement differs by file type:
@@ -67,6 +138,11 @@ endif
 
 **Root Makefile** (`modules/Makefile`) — header only, no guard (it is the file that *defines* `MF_TOOLS_ROOT`, so it cannot guard on it).
 
+**Module shell helper** (`modules/<module>/*.sh`) — use this for module-specific
+discovery logic (for example parsing project config files). Keep scripts
+portable (`/usr/bin/env sh` unless Bash-only features are required) and add
+them to `modules/manifest.txt`.
+
 Checklist:
 1. `Filename` uses the path relative to the repo root.
 2. `Last edited` matches `date -r <file> +"%Y-%m-%d %H:%M:%S"` (local timezone).
@@ -80,6 +156,7 @@ Checklist:
 | `modules/Makefile` (root)               | _none_        | —                    | Already the root; no guard. |
 | `modules/<module>/Makefile`             | `-include .makefiles/modules/Makefile` | Immediately after header, **before** the guard | Only once per file. |
 | `modules/<module>/*.mk` helper files    | _never_       | —                    | Depends on parent Makefile; guard only. |
+| `modules/<module>/*.sh` helper scripts  | _never_       | —                    | Standalone scripts; no Make include semantics. |
 
 > Tip: keep all include paths literal (no variables) so downstream consumers can grep for them.
 
@@ -96,8 +173,9 @@ Checklist:
 	- Define your targets (prefer `target::` if you expect other files to append behavior).
 3. **Optional helper files**
 	- For reusable snippets (e.g., `install.mk`), create additional `.mk` files with the same header+guard but **without** including the root.
+  - For module-specific path/config discovery, prefer a module-local helper script (for example `discover-paths.sh`) over adding module-aware logic to core.
 4. **Register in the manifest**
-	- Add every new file (the module `Makefile` and any `.mk` helpers) to `modules/manifest.txt`, one path per line relative to `modules/`. Without this, `fetch` will not download the file.
+  - Add every new file (module `Makefile`, any `.mk` helpers, and any module-local scripts) to `modules/manifest.txt`, one path per line relative to `modules/`. Without this, `fetch` will not download the file.
 5. **Update timestamps**
 	- After editing, run `date -r modules/<module>/Makefile +"%Y-%m-%d %H:%M:%S"` and copy the result into the header.
 

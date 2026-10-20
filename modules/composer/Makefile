@@ -1,7 +1,7 @@
 #
 # Filename: modules/composer/Makefile
-# Last edited: 2026-10-01 13:05:25
-# Description: Composer module entry targets for install and clean workflows.
+# Last edited: 2026-10-20 18:10:00
+# Description: Composer module controller that registers targets and includes recipes.
 #
 
 -include .makefiles/modules/Makefile
@@ -10,36 +10,14 @@ ifndef MF_TOOLS_ROOT
 $(error MF_TOOLS_ROOT is not set. Include modules/Makefile before using modules/composer/Makefile.)
 endif
 
--include .makefiles/modules/composer/install-binary.mk
+MF_CURRENT_MODULE_ENTRY := $(lastword $(filter %/modules/composer/Makefile,$(MAKEFILE_LIST)))
+$(eval $(call mf_register_module,$(MF_CURRENT_MODULE_ENTRY),echopath install clean install-composer-binary))
 
+PHP ?= php
 COMPOSER := $(MF_TOOLS_ROOT)composer.phar
+MF_COMPOSER_EMPTY :=
+MF_COMPOSER_SPACE := $(MF_COMPOSER_EMPTY) $(MF_COMPOSER_EMPTY)
+MF_COMPOSER_TARGET := $(subst $(MF_COMPOSER_SPACE),\$(MF_COMPOSER_SPACE),$(COMPOSER))
 
-echopath::
-	@echo "Composer module Makefile"
-	@echo "MF_PROJECT_ROOT: $(MF_PROJECT_ROOT)"
-	@echo "MF_MAKEFILES_ROOT: $(MF_MAKEFILES_ROOT)"
-	@echo "MF_MODULES_ROOT: $(MF_MODULES_ROOT)"
-	@echo "MF_TOOLS_ROOT: $(MF_TOOLS_ROOT)"
-	@echo ""
-
-install:: $(COMPOSER)
-	@echo "[composer] install target invoked"
-	php $(COMPOSER) install --working-dir=$(MF_PROJECT_ROOT)
-
-# Clean vendor directory if it exists
-clean::
-	@if [ -d "$(MF_PROJECT_ROOT)vendor" ] && [ -f "$(MF_PROJECT_ROOT)composer.lock" ]; then \
-		echo "[composer] clean target invoked"; \
-		rm -rf "$(MF_PROJECT_ROOT)vendor"; \
-	else \
-		echo "[composer] clean target skipped, no vendor directory and composer.lock found"; \
-	fi
-
-# Install composer if it doesn't exist
-$(COMPOSER): 
-	@if [ -f "$(COMPOSER)" ]; then \
-		echo "[composer] composer binary already present"; \
-	else \
-		$(MAKE) install-composer-binary && \
-		echo "[composer] composer binary is installed"; \
-	fi
+-include .makefiles/modules/composer/install-binary.mk
+-include .makefiles/modules/composer/targets.mk
