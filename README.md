@@ -88,8 +88,8 @@ Consequently, `make composer build` in a consumer using the current published
 composer module fails validation before running any recipe. For the currently
 published targets, scoped commands include `make composer install`,
 `make npm install`, and `make docker clean`. The npm install target runs
-`npm ci` against `package-lock.json` or `npm-shrinkwrap.json` without updating
-the lockfile.
+`npm ci` when `package-lock.json` or `npm-shrinkwrap.json` is present, and
+falls back to `npm install` when only `package.json` is present.
 
 Scoped validation errors are written to stderr and return status 2. An unknown
 module identifies the requested name and lists imported modules:
@@ -153,7 +153,7 @@ before the selected module target.
 | docker | `echopath::` | Diagnostic: prints the module name and the resolved `MF_*` paths. |
 | docker | `clean::` | Stub: prints a line only. The docker module is a placeholder with no real targets yet. |
 | npm | `echopath::` | Diagnostic: prints the module name, resolved `MF_*` paths, and npm executable. |
-| npm | `install::` | Runs `npm ci` in the project root; requires `package.json` and `package-lock.json` or `npm-shrinkwrap.json`. Set `NPM` or `NPM_INSTALL_ARGS` to customize the command. |
+| npm | `install::` | Runs `npm ci` in the project root when `package-lock.json` or `npm-shrinkwrap.json` exists; otherwise runs `npm install` when only `package.json` is present. Set `NPM` or `NPM_INSTALL_ARGS` to customize the command. |
 | npm | `clean::` | Removes generated directories listed in `NPM_CLEAN_DIRS` (defaults: `node_modules`, `dist`, `build`, `coverage`, `.next`, `.nuxt`, `.output`); leaves source files and lockfiles untouched. |
 | phpunit | `echopath::` | Diagnostic: prints the module name, resolved `MF_*` paths, PHPUnit executable, and coverage directory. |
 | phpunit | `install-phpunit-binary` | Downloads the optional standalone PHPUnit PHAR into `.makefiles/tools/` (or `PHPUNIT_PHAR`). |

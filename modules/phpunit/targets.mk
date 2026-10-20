@@ -127,6 +127,14 @@ clean::
 	@coverage_dir="coverage"; \
 	project_root="$(MF_PROJECT_ROOT)"; \
 	project_root=$${project_root%/}; \
+	remove_script="$(MF_MODULES_ROOT)core/remove-with-guardrails.sh"; \
+	if [ ! -f "$$remove_script" ] && [ -f "/tmp/mf-remove-with-guardrails.sh" ]; then \
+		remove_script="/tmp/mf-remove-with-guardrails.sh"; \
+	fi; \
+	if [ ! -f "$$remove_script" ]; then \
+		echo "[phpunit] missing guardrails helper script" >&2; \
+		exit 1; \
+	fi; \
 	if [ -f "$(MF_PROJECT_ROOT)phpunit.xml" ]; then \
 		configured_coverage=$$(grep -Eo 'outputDirectory="[^"]+"' "$(MF_PROJECT_ROOT)phpunit.xml" | head -n1 | sed -E 's/outputDirectory="([^"]+)"/\1/'); \
 		if [ -n "$$configured_coverage" ]; then \
@@ -137,33 +145,6 @@ clean::
 		/*) ;; \
 		*) coverage_dir="$(MF_PROJECT_ROOT)$$coverage_dir" ;; \
 	esac; \
-	for cleanup_path in "$$coverage_dir" "$(MF_PROJECT_ROOT).phpunit.cache" "$(MF_PROJECT_ROOT).phpunit.result.cache"; do \
-		if [ -d "$$cleanup_path" ]; then \
-			resolved_path=$$(cd "$$cleanup_path" 2>/dev/null && pwd -P || true); \
-			if [ -z "$$resolved_path" ]; then \
-				echo "[phpunit] skipping $$cleanup_path (unable to resolve path)"; \
-			elif [ "$$resolved_path" = "/" ] || [ "$$resolved_path" = "$$project_root" ]; then \
-				echo "[phpunit] refusing to remove unsafe path $$resolved_path" >&2; \
-			elif [ "$${resolved_path#$$project_root/}" = "$$resolved_path" ]; then \
-				echo "[phpunit] refusing to remove path outside project root: $$resolved_path" >&2; \
-			else \
-				echo "[phpunit] removing directory $$resolved_path"; \
-				rm -rf "$$resolved_path"; \
-			fi; \
-		elif [ -f "$$cleanup_path" ]; then \
-			resolved_dir=$$(cd "$$(dirname "$$cleanup_path")" 2>/dev/null && pwd -P || true); \
-			resolved_path="$$resolved_dir/$$(basename "$$cleanup_path")"; \
-			if [ -z "$$resolved_dir" ]; then \
-				echo "[phpunit] skipping $$cleanup_path (unable to resolve path)"; \
-			elif [ "$$resolved_path" = "/" ] || [ "$$resolved_path" = "$$project_root" ]; then \
-				echo "[phpunit] refusing to remove unsafe path $$resolved_path" >&2; \
-			elif [ "$${resolved_path#$$project_root/}" = "$$resolved_path" ]; then \
-				echo "[phpunit] refusing to remove path outside project root: $$resolved_path" >&2; \
-			else \
-				echo "[phpunit] removing file $$resolved_path"; \
-				rm -f "$$resolved_path"; \
-			fi; \
-		else \
-			echo "[phpunit] skipping $$cleanup_path (not found)"; \
-		fi; \
-	done
+	sh "$$remove_script" "$$project_root" phpunit dir "$$coverage_dir"; \
+	sh "$$remove_script" "$$project_root" phpunit dir "$(MF_PROJECT_ROOT).phpunit.cache"; \
+	sh "$$remove_script" "$$project_root" phpunit file "$(MF_PROJECT_ROOT).phpunit.result.cache"

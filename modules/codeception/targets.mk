@@ -137,6 +137,14 @@ clean::
 	support_dir="_support"; \
 	project_root="$(MF_PROJECT_ROOT)"; \
 	project_root=$${project_root%/}; \
+	remove_script="$(MF_MODULES_ROOT)core/remove-with-guardrails.sh"; \
+	if [ ! -f "$$remove_script" ] && [ -f "/tmp/mf-remove-with-guardrails.sh" ]; then \
+		remove_script="/tmp/mf-remove-with-guardrails.sh"; \
+	fi; \
+	if [ ! -f "$$remove_script" ]; then \
+		echo "[codeception] missing guardrails helper script" >&2; \
+		exit 1; \
+	fi; \
 	if [ -f "$(MF_PROJECT_ROOT)codeception.yml" ]; then \
 		configured_output=$$(grep -E '^[[:space:]]*output:[[:space:]]*' "$(MF_PROJECT_ROOT)codeception.yml" | head -n1 | cut -d: -f2- | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$$//' | tr -d '"' | tr -d "'"); \
 		configured_support=$$(grep -E '^[[:space:]]*support:[[:space:]]*' "$(MF_PROJECT_ROOT)codeception.yml" | head -n1 | cut -d: -f2- | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$$//' | tr -d '"' | tr -d "'"); \
@@ -156,20 +164,6 @@ clean::
 		*) support_dir="$(MF_PROJECT_ROOT)$$support_dir" ;; \
 	esac; \
 	coverage_dir="$$output_dir/coverage"; \
-	for cleanup_path in "$$coverage_dir" "$$support_dir" "$$output_dir"; do \
-		if [ -d "$$cleanup_path" ]; then \
-			resolved_path=$$(cd "$$cleanup_path" 2>/dev/null && pwd -P || true); \
-			if [ -z "$$resolved_path" ]; then \
-				echo "[codeception] skipping $$cleanup_path (unable to resolve path)"; \
-			elif [ "$$resolved_path" = "/" ] || [ "$$resolved_path" = "$$project_root" ]; then \
-				echo "[codeception] refusing to remove unsafe path $$resolved_path" >&2; \
-			elif [ "$${resolved_path#$$project_root/}" = "$$resolved_path" ]; then \
-				echo "[codeception] refusing to remove path outside project root: $$resolved_path" >&2; \
-			else \
-				echo "[codeception] removing $$resolved_path"; \
-				rm -rf "$$resolved_path"; \
-			fi; \
-		else \
-			echo "[codeception] skipping $$cleanup_path (not found)"; \
-		fi; \
-	done
+	sh "$$remove_script" "$$project_root" codeception dir "$$coverage_dir"; \
+	sh "$$remove_script" "$$project_root" codeception dir "$$support_dir"; \
+	sh "$$remove_script" "$$project_root" codeception dir "$$output_dir"
