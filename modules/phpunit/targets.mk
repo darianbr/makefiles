@@ -125,6 +125,8 @@ coverage-open:: coverage
 # .makefiles without being recreated mid-run.
 clean::
 	@coverage_dir="coverage"; \
+	project_root="$(MF_PROJECT_ROOT)"; \
+	project_root=$${project_root%/}; \
 	if [ -f "$(MF_PROJECT_ROOT)phpunit.xml" ]; then \
 		configured_coverage=$$(grep -Eo 'outputDirectory="[^"]+"' "$(MF_PROJECT_ROOT)phpunit.xml" | head -n1 | sed -E 's/outputDirectory="([^"]+)"/\1/'); \
 		if [ -n "$$configured_coverage" ]; then \
@@ -137,11 +139,30 @@ clean::
 	esac; \
 	for cleanup_path in "$$coverage_dir" "$(MF_PROJECT_ROOT).phpunit.cache" "$(MF_PROJECT_ROOT).phpunit.result.cache"; do \
 		if [ -d "$$cleanup_path" ]; then \
-			echo "[phpunit] removing directory $$cleanup_path"; \
-			rm -rf "$$cleanup_path"; \
+			resolved_path=$$(cd "$$cleanup_path" 2>/dev/null && pwd -P || true); \
+			if [ -z "$$resolved_path" ]; then \
+				echo "[phpunit] skipping $$cleanup_path (unable to resolve path)"; \
+			elif [ "$$resolved_path" = "/" ] || [ "$$resolved_path" = "$$project_root" ]; then \
+				echo "[phpunit] refusing to remove unsafe path $$resolved_path" >&2; \
+			elif [ "$${resolved_path#$$project_root/}" = "$$resolved_path" ]; then \
+				echo "[phpunit] refusing to remove path outside project root: $$resolved_path" >&2; \
+			else \
+				echo "[phpunit] removing directory $$resolved_path"; \
+				rm -rf "$$resolved_path"; \
+			fi; \
 		elif [ -f "$$cleanup_path" ]; then \
-			echo "[phpunit] removing file $$cleanup_path"; \
-			rm -f "$$cleanup_path"; \
+			resolved_dir=$$(cd "$$(dirname "$$cleanup_path")" 2>/dev/null && pwd -P || true); \
+			resolved_path="$$resolved_dir/$$(basename "$$cleanup_path")"; \
+			if [ -z "$$resolved_dir" ]; then \
+				echo "[phpunit] skipping $$cleanup_path (unable to resolve path)"; \
+			elif [ "$$resolved_path" = "/" ] || [ "$$resolved_path" = "$$project_root" ]; then \
+				echo "[phpunit] refusing to remove unsafe path $$resolved_path" >&2; \
+			elif [ "$${resolved_path#$$project_root/}" = "$$resolved_path" ]; then \
+				echo "[phpunit] refusing to remove path outside project root: $$resolved_path" >&2; \
+			else \
+				echo "[phpunit] removing file $$resolved_path"; \
+				rm -f "$$resolved_path"; \
+			fi; \
 		else \
 			echo "[phpunit] skipping $$cleanup_path (not found)"; \
 		fi; \

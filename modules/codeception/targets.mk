@@ -135,6 +135,8 @@ coverage-open:: coverage
 clean::
 	@output_dir="_output"; \
 	support_dir="_support"; \
+	project_root="$(MF_PROJECT_ROOT)"; \
+	project_root=$${project_root%/}; \
 	if [ -f "$(MF_PROJECT_ROOT)codeception.yml" ]; then \
 		configured_output=$$(grep -E '^[[:space:]]*output:[[:space:]]*' "$(MF_PROJECT_ROOT)codeception.yml" | head -n1 | cut -d: -f2- | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$$//' | tr -d '"' | tr -d "'"); \
 		configured_support=$$(grep -E '^[[:space:]]*support:[[:space:]]*' "$(MF_PROJECT_ROOT)codeception.yml" | head -n1 | cut -d: -f2- | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$$//' | tr -d '"' | tr -d "'"); \
@@ -156,8 +158,17 @@ clean::
 	coverage_dir="$$output_dir/coverage"; \
 	for cleanup_path in "$$coverage_dir" "$$support_dir" "$$output_dir"; do \
 		if [ -d "$$cleanup_path" ]; then \
-			echo "[codeception] removing $$cleanup_path"; \
-			rm -rf "$$cleanup_path"; \
+			resolved_path=$$(cd "$$cleanup_path" 2>/dev/null && pwd -P || true); \
+			if [ -z "$$resolved_path" ]; then \
+				echo "[codeception] skipping $$cleanup_path (unable to resolve path)"; \
+			elif [ "$$resolved_path" = "/" ] || [ "$$resolved_path" = "$$project_root" ]; then \
+				echo "[codeception] refusing to remove unsafe path $$resolved_path" >&2; \
+			elif [ "$${resolved_path#$$project_root/}" = "$$resolved_path" ]; then \
+				echo "[codeception] refusing to remove path outside project root: $$resolved_path" >&2; \
+			else \
+				echo "[codeception] removing $$resolved_path"; \
+				rm -rf "$$resolved_path"; \
+			fi; \
 		else \
 			echo "[codeception] skipping $$cleanup_path (not found)"; \
 		fi; \
