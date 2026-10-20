@@ -1,5 +1,5 @@
 ---
-applyTo: 'modules/**/*.mk, modules/**/Makefile'
+applyTo: 'modules/**/*.mk, modules/**/Makefile, modules/**/*.sh'
 ---
 
 All files under the `modules/` directories are files that make up a module. A module is a collection of files that provide reusable functionality for various programming languages and tools.
@@ -10,11 +10,12 @@ All files under the `modules/` directories are files that make up a module. A mo
 The root `modules/Makefile` provides shared functionality and variables for all Makefiles under their respective module directories.
 
 ### Modules
-- Folders directly under `modules/` define modules (e.g., `composer`, `docker`, `phpunit`, etc.).
+- Folders directly under `modules/` define modules (e.g., `composer`, `docker`, `phpunit`, `typescript`, `vitest`, etc.).
 - Each module **must** contain a file named `Makefile` at the base of the module folder (e.g. `modules/<module>/Makefile`).
 - Every `modules/<module>/Makefile` **must** include the root Makefile located at `modules/Makefile` directly after the header (see Headers below) leaving a blank line.
 - Additional Makefile targets for the module can be included in module folder, **must** be suffixed `*.mk`, **must** include the header (see Headers below) and must not include the root library Makefile. An example is `modules/composer/install-binary.mk`.
 - Module-specific helper scripts may live under `modules/<module>/*.sh` (for example config/path discovery helpers). Keep module behavior module-local; core files should remain module-agnostic.
+- Generic shared helper scripts may live under `modules/core/*.sh` when they are module-agnostic (for example reusable path and guardrail helpers).
 - All module files under `modules/**/*` **must always** follow the instructions outlined in the header section below.
 
 ## Public Module Targets and Namespacing
@@ -81,7 +82,7 @@ What follows the header depends on the file type (each part separated by a singl
   endif
   ```
 - **Root `modules/Makefile`** — header only; it defines the shared variables and has **no** guard (it *is* the file that sets `MF_TOOLS_ROOT`).
-- **Module helper script** (`modules/<module>/*.sh`) — optional shell helper for module-local behavior. Use module ownership for config parsing logic rather than adding module-aware logic to core.
+- **Module/helper script** (`modules/<module>/*.sh` and `modules/core/*.sh`) — shell helpers are allowed for module-local behavior and generic shared behavior. Keep module-specific parsing logic in module-owned scripts; keep core scripts module-agnostic.
 
 - Run the command `date -r <filename> +'%Y-%m-%d %H:%M:%S'` to get the Last Edited date and time for `<YYYY-MM-DD> <HH:MM:SS>`.
 - The `<filename>` field **must** be the relative path to the file from the project root.
@@ -105,6 +106,10 @@ modules/
   │   └── install-binary.mk   # Helper fragment (header and guard only)
   │   └── discover-paths.sh   # Optional module helper script
   ├── docker/                 # Docker placeholder module
+  │   └── Makefile            # Module Makefile (includes header and root include)
+  ├── typescript/             # TypeScript compile and typecheck module
+  │   └── Makefile            # Module Makefile (includes header and root include)
+  ├── vitest/                 # Vitest test and coverage module
   │   └── Makefile            # Module Makefile (includes header and root include)
   └── phpunit/                # PHPUnit test and coverage module
       ├── Makefile            # Module Makefile (includes header and root include)

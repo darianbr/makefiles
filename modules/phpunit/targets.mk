@@ -6,6 +6,7 @@
 
 MF_PHPUNIT_PATH_DISCOVERY_SCRIPT := $(MF_MODULES_ROOT)phpunit/discover-paths.sh
 MF_PHPUNIT_COVERAGE_CACHE_PATH := $(MF_CACHE_ROOT)phpunit-coverage-dir
+MF_PHPUNIT_COVERAGE_INDEX_CACHE_PATH := $(MF_CACHE_ROOT)phpunit-coverage-index
 MF_PHPUNIT_CONFIG_FILE := $(if $(wildcard $(MF_PROJECT_ROOT)phpunit.xml),$(MF_PROJECT_ROOT)phpunit.xml,(default fallback: coverage))
 MF_PHPUNIT_CONFIG_DEP := $(wildcard $(MF_PROJECT_ROOT)phpunit.xml)
 
@@ -99,24 +100,33 @@ coverage:: phpunit-prerequisites $(MF_PHPUNIT_COVERAGE_CACHE_PATH)
 		fi; \
 	fi
 
-coverage-open:: coverage
+$(MF_PHPUNIT_COVERAGE_INDEX_CACHE_PATH): coverage $(MF_PHPUNIT_COVERAGE_CACHE_PATH)
+	@mkdir -p "$(dir $@)"
 	@coverage_dir=$$(cat "$(MF_PHPUNIT_COVERAGE_CACHE_PATH)"); \
-	if ! (cd "$(MF_PROJECT_ROOT)" && [ -f "$$coverage_dir/index.html" ]); then \
-		echo "[phpunit] Coverage report was not generated: $$coverage_dir/index.html" >&2; \
+	coverage_index="$$coverage_dir/index.html"; \
+	if ! (cd "$(MF_PROJECT_ROOT)" && [ -f "$$coverage_index" ]); then \
+		echo "[phpunit] Coverage report was not generated: $$coverage_index" >&2; \
 		exit 1; \
-	fi
+	fi; \
+	printf '%s\n' "$$coverage_index" > "$@"
+
+coverage-open:: $(MF_PHPUNIT_COVERAGE_INDEX_CACHE_PATH)
 	@if [ -n "$(BROWSER)" ]; then \
 		if ! (cd "$(MF_PROJECT_ROOT)" && command -v "$(BROWSER)" >/dev/null 2>&1); then \
 			echo "[phpunit] Browser opener not found: $(BROWSER)" >&2; \
 			exit 1; \
 		fi; \
-		cd "$(MF_PROJECT_ROOT)" && "$(BROWSER)" "$$coverage_dir/index.html"; \
+		coverage_index=$$(cat "$(MF_PHPUNIT_COVERAGE_INDEX_CACHE_PATH)"); \
+		cd "$(MF_PROJECT_ROOT)" && "$(BROWSER)" "$$coverage_index"; \
 	elif command -v xdg-open >/dev/null 2>&1; then \
-		cd "$(MF_PROJECT_ROOT)" && xdg-open "$$coverage_dir/index.html"; \
+		coverage_index=$$(cat "$(MF_PHPUNIT_COVERAGE_INDEX_CACHE_PATH)"); \
+		cd "$(MF_PROJECT_ROOT)" && xdg-open "$$coverage_index"; \
 	elif command -v open >/dev/null 2>&1; then \
-		cd "$(MF_PROJECT_ROOT)" && open "$$coverage_dir/index.html"; \
+		coverage_index=$$(cat "$(MF_PHPUNIT_COVERAGE_INDEX_CACHE_PATH)"); \
+		cd "$(MF_PROJECT_ROOT)" && open "$$coverage_index"; \
 	else \
-		echo "[phpunit] No browser opener found; open $$coverage_dir/index.html manually." >&2; \
+		coverage_index=$$(cat "$(MF_PHPUNIT_COVERAGE_INDEX_CACHE_PATH)"); \
+		echo "[phpunit] No browser opener found; open $$coverage_index manually." >&2; \
 		exit 1; \
 	fi
 

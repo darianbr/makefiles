@@ -1,7 +1,9 @@
 Makefile
 core/clean.mk
+core/discover-common.sh
 core/dispatch.mk
 core/paths.mk
+core/remove-with-guardrails.sh
 core/registry.mk
 composer/Makefile
 composer/install-binary.mk
@@ -17,3 +19,7 @@ phpunit/discover-paths.sh
 phpunit/Makefile
 phpunit/install-binary.mk
 phpunit/targets.mk
+typescript/Makefile
+typescript/targets.mk
+vitest/Makefile
+vitest/targets.mk
