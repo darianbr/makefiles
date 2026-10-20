@@ -5,7 +5,7 @@
 #
 
 MF_PHPUNIT_PATH_DISCOVERY_SCRIPT := $(MF_MODULES_ROOT)phpunit/discover-paths.sh
-MF_PHPUNIT_COVERAGE_CACHE := $(MF_MAKEFILES_ROOT).cache/phpunit-coverage-dir
+MF_PHPUNIT_COVERAGE_DIR_CACHE_FILE := $(MF_MAKEFILES_ROOT).cache/phpunit-coverage-dir
 MF_PHPUNIT_CONFIG_FILE := $(if $(wildcard $(MF_PROJECT_ROOT)phpunit.xml),$(MF_PROJECT_ROOT)phpunit.xml,(default fallback: coverage))
 MF_PHPUNIT_CONFIG_DEP := $(wildcard $(MF_PROJECT_ROOT)phpunit.xml)
 
@@ -19,7 +19,7 @@ $(MF_PHPUNIT_PATH_DISCOVERY_SCRIPT):
 		exit 1; \
 	fi
 
-$(MF_PHPUNIT_COVERAGE_CACHE): $(MF_PHPUNIT_PATH_DISCOVERY_SCRIPT) $(MF_PHPUNIT_CONFIG_DEP)
+$(MF_PHPUNIT_COVERAGE_DIR_CACHE_FILE): $(MF_PHPUNIT_PATH_DISCOVERY_SCRIPT) $(MF_PHPUNIT_CONFIG_DEP)
 	@mkdir -p "$(dir $@)"
 	@resolved=''; \
 	if [ -x "$(MF_PHPUNIT_PATH_DISCOVERY_SCRIPT)" ]; then \
@@ -30,7 +30,7 @@ $(MF_PHPUNIT_COVERAGE_CACHE): $(MF_PHPUNIT_PATH_DISCOVERY_SCRIPT) $(MF_PHPUNIT_C
 	fi; \
 	printf '%s\n' "$$resolved" > "$@"
 
-echopath:: $(MF_PHPUNIT_COVERAGE_CACHE)
+echopath:: $(MF_PHPUNIT_COVERAGE_DIR_CACHE_FILE)
 	@echo "PHPUnit module Makefile"
 	@echo "MF_PROJECT_ROOT: $(MF_PROJECT_ROOT)"
 	@echo "MF_MAKEFILES_ROOT: $(MF_MAKEFILES_ROOT)"
@@ -38,7 +38,7 @@ echopath:: $(MF_PHPUNIT_COVERAGE_CACHE)
 	@echo "MF_TOOLS_ROOT: $(MF_TOOLS_ROOT)"
 	@echo "PHPUNIT: $(PHPUNIT)"
 	@echo "PHPUNIT_CONFIG: $(MF_PHPUNIT_CONFIG_FILE)"
-	@coverage_dir=$$(cat "$(MF_PHPUNIT_COVERAGE_CACHE)"); echo "PHPUNIT_COVERAGE_DIR: $$coverage_dir"
+	@coverage_dir=$$(cat "$(MF_PHPUNIT_COVERAGE_DIR_CACHE_FILE)"); echo "PHPUNIT_COVERAGE_DIR: $$coverage_dir"
 	@echo ""
 
 phpunit-prerequisites:
@@ -73,8 +73,8 @@ test:: phpunit-prerequisites
 		"$(PHPUNIT)" $(PHPUNIT_ARGS); \
 	fi
 
-coverage:: phpunit-prerequisites $(MF_PHPUNIT_COVERAGE_CACHE)
-	@coverage_dir=$$(cat "$(MF_PHPUNIT_COVERAGE_CACHE)"); \
+coverage:: phpunit-prerequisites $(MF_PHPUNIT_COVERAGE_DIR_CACHE_FILE)
+	@coverage_dir=$$(cat "$(MF_PHPUNIT_COVERAGE_DIR_CACHE_FILE)"); \
 	cd "$(MF_PROJECT_ROOT)" && \
 	if [ -f "$(PHPUNIT)" ]; then \
 		"$(PHP)" "$(PHPUNIT)" --coverage-html "$$coverage_dir" $(PHPUNIT_ARGS); \
@@ -83,7 +83,7 @@ coverage:: phpunit-prerequisites $(MF_PHPUNIT_COVERAGE_CACHE)
 	fi
 
 coverage-open:: coverage
-	@coverage_dir=$$(cat "$(MF_PHPUNIT_COVERAGE_CACHE)"); \
+	@coverage_dir=$$(cat "$(MF_PHPUNIT_COVERAGE_DIR_CACHE_FILE)"); \
 	if ! (cd "$(MF_PROJECT_ROOT)" && [ -f "$$coverage_dir/index.html" ]); then \
 		echo "[phpunit] Coverage report was not generated: $$coverage_dir/index.html" >&2; \
 		exit 1; \
@@ -104,8 +104,8 @@ coverage-open:: coverage
 	fi
 
 # Remove the generated HTML coverage report without touching other project data.
-clean:: $(MF_PHPUNIT_COVERAGE_CACHE)
-	@coverage_dir=$$(cat "$(MF_PHPUNIT_COVERAGE_CACHE)"); \
+clean:: $(MF_PHPUNIT_COVERAGE_DIR_CACHE_FILE)
+	@coverage_dir=$$(cat "$(MF_PHPUNIT_COVERAGE_DIR_CACHE_FILE)"); \
 	if [ -d "$$coverage_dir" ]; then \
 		echo "[phpunit] removing coverage directory $$coverage_dir"; \
 		rm -rf "$$coverage_dir"; \

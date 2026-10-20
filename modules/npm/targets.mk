@@ -35,9 +35,9 @@ install::
 # and source files are not part of this list and are left untouched.
 clean::
 	@cd "$(MF_PROJECT_ROOT)" && \
-	for artifact in $(NPM_CLEAN_DIRS); do \
-		if [ -d "$$artifact" ]; then \
-			echo "[npm] removing $$artifact"; \
-			rm -rf -- "$$artifact"; \
+	for artefact in $(NPM_CLEAN_DIRS); do \
+		if [ -d "$$artefact" ]; then \
+			echo "[npm] removing $$artefact"; \
+			rm -rf -- "$$artefact"; \
 		fi; \
 	done
