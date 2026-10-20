@@ -9,7 +9,7 @@ MF_CODECEPTION_COVERAGE_CACHE_PATH := $(MF_CACHE_ROOT)codeception-coverage-dir
 MF_CODECEPTION_CONFIG_FILE := $(if $(wildcard $(MF_PROJECT_ROOT)codeception.yml),$(MF_PROJECT_ROOT)codeception.yml,(default fallback: _output/coverage))
 MF_CODECEPTION_CONFIG_DEP := $(wildcard $(MF_PROJECT_ROOT)codeception.yml)
 
-.PHONY: echopath test coverage coverage-open clean codeception-prerequisites codeception-coverage-prerequisites codeception-ready
+.PHONY: echopath test coverage coverage-open clean codeception-prerequisites codeception-ready
 
 $(MF_CODECEPTION_PATH_DISCOVERY_SCRIPT):
 	@echo "[codeception] refreshing cached module files"
@@ -47,13 +47,6 @@ codeception-prerequisites:
 		echo "[codeception] Install PHP or invoke make with PHP=/path/to/php." >&2; \
 		exit 1; \
 	fi
-
-codeception-coverage-prerequisites: codeception-prerequisites
-	@if ! (cd "$(MF_PROJECT_ROOT)" && "$(PHP)" -m | grep -qiE '^(xdebug|pcov)$$'); then \
-		echo "[codeception] No coverage driver detected. Install and enable xdebug or pcov for line coverage." >&2; \
-		echo "[codeception] Hint: xdebug users may also need XDEBUG_MODE=coverage." >&2; \
-		exit 1; \
-	fi
 	@if cd "$(MF_PROJECT_ROOT)" && { [ -f "$(CODECEPTION)" ] || command -v "$(CODECEPTION)" >/dev/null 2>&1; }; then \
 		:; \
 	else \
@@ -89,8 +82,17 @@ test:: codeception-ready
 		"$(CODECEPTION)" run $(CODECEPTION_ARGS); \
 	fi
 
-coverage:: codeception-ready codeception-coverage-prerequisites $(MF_CODECEPTION_COVERAGE_CACHE_PATH)
+coverage:: codeception-ready $(MF_CODECEPTION_COVERAGE_CACHE_PATH)
 	@coverage_dir=$$(cat "$(MF_CODECEPTION_COVERAGE_CACHE_PATH)"); \
+	if ! (cd "$(MF_PROJECT_ROOT)" && "$(PHP)" -m | grep -qiE '^(xdebug|pcov)$$'); then \
+		echo "[codeception] No coverage driver detected. Install and enable xdebug or pcov for line coverage." >&2; \
+		echo "[codeception] Hint: xdebug users may also need XDEBUG_MODE=coverage." >&2; \
+		if [ -n "$(MF_SCOPED_MODULE)" ]; then \
+			exit 1; \
+		fi; \
+		echo "[codeception] skipping coverage in aggregate mode"; \
+		exit 0; \
+	fi; \
 	cd "$(MF_PROJECT_ROOT)" && \
 	if [ -f "$(CODECEPTION)" ]; then \
 		if "$(PHP)" -m | grep -qi '^xdebug$$'; then \
