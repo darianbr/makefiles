@@ -28,6 +28,9 @@ modules/
   │     └── Makefile
   ├── npm/                (npm dependency installation and generated-artifact cleanup)
   │     └── Makefile
+  ├── rust/               (Rust build, test, clippy, fmt, and target-directory cleanup)
+  │     ├── Makefile
+  │     └── targets.mk
   ├── typescript/         (TypeScript compile and typecheck targets)
   │     └── Makefile
   ├── vitest/             (Vitest test and coverage targets)
@@ -99,11 +102,13 @@ Codeception and PHPUnit discover coverage paths with module-local scripts and
 persist resolved values to `.makefiles/cache/`. Path-dependent targets such as
 `coverage` and `coverage-open` should depend on the same cache file to
 guarantee consistent behavior within a run. Keep module `clean` targets
-independent from cache-file prerequisites so base clean can remove generated
-folders without rehydrating `.makefiles/` mid-run.
-
-Vitest and TypeScript follow the same dispatch/registration rules as existing
-modules. Keep scoped targets explicit (`make vitest test`,
+indepe, TypeScript, and Rust follow the same dispatch/registration rules as
+existing modules. Keep scoped targets explicit (`make vitest test`,
+`make vitest coverage`, `make typescript test`, `make typescript build`,
+`make rust build`, `make rust test`, `make rust clippy`, `make rust fmt`) and
+ensure any new public targets are listed in module registration immediately when
+added. The Rust module resolves the cargo target directory from `cargo metadata`
+so `CARGO_TARGET_DIR` and `.cargo/config.toml` overrides are honored by `clean`es. Keep scoped targets explicit (`make vitest test`,
 `make vitest coverage`, `make typescript test`, `make typescript build`) and
 ensure any new public targets are listed in module registration immediately when
 added.
