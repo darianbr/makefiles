@@ -42,8 +42,10 @@ standalone MVP under `examples/<module>/` so you can copy only what you need.
 - `examples/phpunit/`
 - `examples/composer/`
 - `examples/npm/`
+- `examples/rust/`
 - `examples/typescript/`
 - `examples/vitest/`
+- `examples/stacked-tests/`
 - `examples/docker/`
 
 ## Usage Examples
@@ -95,7 +97,7 @@ $ make composer build
 
 The `npm` and `build` examples assume the consumer has imported an npm module
 and that both modules expose a `build` target. The currently published modules
-in this repository are `codeception`, `composer`, `docker`, `npm`, `phpunit`, `typescript`, and `vitest`; composer currently exposes
+in this repository are `codeception`, `composer`, `docker`, `npm`, `phpunit`, `rust`, `typescript`, and `vitest`; composer currently exposes
 `install`, `clean`, `echopath`, and `install-composer-binary`, but not `build`.
 Consequently, `make composer build` in a consumer using the current published
 composer module fails validation before running any recipe. For the currently
@@ -174,6 +176,12 @@ before the selected module target.
 | phpunit | `coverage::` | Runs PHPUnit with `--coverage-html` and writes the report to the path resolved from `phpunit.xml` HTML report config (fallback: `coverage/`). |
 | phpunit | `coverage-open::` | Regenerates the HTML coverage report and opens `coverage/index.html` with `BROWSER`, `xdg-open`, or `open`. |
 | phpunit | `clean::` | Removes PHPUnit suite artefacts: HTML coverage output (resolved from `phpunit.xml` or fallback `coverage/`), `.phpunit.cache`, and `.phpunit.result.cache`. |
+| rust | `echopath::` | Diagnostic: prints the module name, resolved `MF_*` paths, cargo executable, and target directory. |
+| rust | `build::` | Runs `cargo build` in the project root. Set `CARGO_BUILD_ARGS` to pass extra flags (for example `--release`). |
+| rust | `test::` | Runs `cargo test` in the project root. Set `CARGO_TEST_ARGS` to pass extra flags. |
+| rust | `clippy::` | Runs `cargo clippy` in the project root. Set `CARGO_CLIPPY_ARGS` to pass extra flags (for example `-- -D warnings`). |
+| rust | `fmt::` | Runs `cargo fmt` in the project root. Set `CARGO_FMT_ARGS` to pass extra flags (for example `-- --check`). |
+| rust | `clean::` | Removes the cargo target directory through shared clean guardrails. The effective directory is resolved from `cargo metadata` (honoring `CARGO_TARGET_DIR` and `.cargo/config.toml`) with a fallback to `target`. |
 | typescript | `echopath::` | Diagnostic: prints the module name, resolved `MF_*` paths, npm executable, and TypeScript configuration values. |
 | typescript | `build::` | Runs TypeScript compilation using the configured project file (default `tsconfig.json`) and output directory (default `build/typescript`). |
 | typescript | `test::` | Runs TypeScript type-check mode (`--noEmit`) using the configured project file. |
@@ -207,7 +215,7 @@ The `fetch` script (hosted at `https://darianbr.github.io/makefiles/fetch`) down
 fetch <module> [--force]
 ```
 
-- `<module>` — module name, e.g. `codeception`, `composer`, `docker`, `npm`, `phpunit`, `typescript`, or `vitest`. Must match a folder under `modules/` listed in `modules/manifest.txt`.
+- `<module>` — module name, e.g. `codeception`, `composer`, `docker`, `npm`, `phpunit`, `rust`, `typescript`, or `vitest`. Must match a folder under `modules/` listed in `modules/manifest.txt`.
 - `--force` — refetch even if the module is already present.
 
 Behavior:

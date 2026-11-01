@@ -19,6 +19,8 @@ phpunit/discover-paths.sh
 phpunit/Makefile
 phpunit/install-binary.mk
 phpunit/targets.mk
+rust/Makefile
+rust/targets.mk
 typescript/Makefile
 typescript/targets.mk
 vitest/Makefile
