@@ -5,7 +5,7 @@
 This repository hosts the canonical makefiles published at `https://darianbr.github.io/makefiles`. They are designed to be human-readable for contributors and machine-friendly for tools like Copilot.
 
 ## Overview
-- **Modular**: each module under `modules/` exposes its own `Makefile` plus optional helper `.mk` fragments.
+- **Modular**: the required consumer-module layout is an entry `Makefile`, a `prerequisites.mk`, and a `targets.mk`, plus optional module-local helpers.
 - **Bootstrap-friendly**: the `fetch` script and a local `make` pattern rule automatically populate `.makefiles/` with the modules you need, on first use.
 - **Config-aware**: modules can derive runtime paths from project config files (for example `codeception.yml` and `phpunit.xml`) and cache resolved values under `.makefiles/cache/`.
 - **Consistent**: every module file carries a `Last edited` header; module entry points load the shared root logic and helper fragments use the same guard convention, so targets behave the same way across projects.
@@ -97,14 +97,13 @@ $ make composer build
 
 The `npm` and `build` examples assume the consumer has imported an npm module
 and that both modules expose a `build` target. The currently published modules
-in this repository are `codeception`, `composer`, `docker`, `npm`, `phpunit`, `rust`, `typescript`, and `vitest`; composer currently exposes
-`install`, `clean`, `echopath`, and `install-composer-binary`, but not `build`.
-Consequently, `make composer build` in a consumer using the current published
-composer module fails validation before running any recipe. For the currently
-published targets, scoped commands include `make composer install`,
-`make npm install`, and `make docker clean`. The npm install target runs
-`npm ci` when `package-lock.json` or `npm-shrinkwrap.json` is present, and
-falls back to `npm install` when only `package.json` is present.
+in this repository are `codeception`, `composer`, `docker`, `npm`, `phpunit`,
+`rust`, `typescript`, and `vitest`; Composer does not expose `build`.
+Consequently, `make composer build` in a consumer using the published Composer
+module fails validation before running any recipe. Scoped examples include
+`make composer install`, `make npm install`, and `make docker clean`. The npm
+install target runs `npm ci` when `package-lock.json` or `npm-shrinkwrap.json`
+is present, and falls back to `npm install` when only `package.json` is present.
 
 Scoped validation errors are written to stderr and return status 2. An unknown
 module identifies the requested name and lists imported modules:
@@ -118,7 +117,7 @@ An unavailable target identifies the selected module and lists its available
 targets:
 
 ```text
-makefiles: target 'build' is not available in module 'composer'; available targets: clean echopath install install-composer-binary
+makefiles: target 'build' is not available in module 'composer'; available targets: clean echopath help install install-composer-binary
 ```
 
 Validation happens before module recipes run. The exact two-goal form is
@@ -133,8 +132,10 @@ Every public module-specific target is available in the module's namespace as
 (for example, `make phpunit test` or `make composer install`), and `<target>`
 is the ordinary Make target name. A module is eligible only when the consumer
 explicitly includes its entry Makefile; a cached but unreferenced module is
-not selectable. Keep each module's public target registration in its entry
-Makefile, including public targets defined in helper `.mk` files. The
+not selectable. Register the standard `clean`, `install`, and `help` targets,
+plus all module-specific public targets, in the entry Makefile. Keep prerequisite
+configuration in `prerequisites.mk` and all target rules and recipes in
+`targets.mk`; optional helper `.mk` files must not define targets. The
 contributor workflow and required registration pattern are in
 [CONTRIBUTIONS.md](CONTRIBUTIONS.md); this README section is the canonical
 reference for invocation and compatibility behavior.
@@ -152,6 +153,12 @@ pairs in `MF_DISPATCH_SETUP_PAIRS`. The setup target runs only for those pairs,
 before the selected module target.
 
 ## Module Targets
+
+Every consumer module is required to expose `clean`, `install`, and `help`,
+using an explicit no-op with a useful message when a target has no work. See
+[CONTRIBUTIONS.md](CONTRIBUTIONS.md) for the required file layout. The table
+below documents target behavior; it is not an audit that every existing module
+already complies.
 
 | Module | Target | Behavior |
 |--------|--------|----------|
@@ -195,11 +202,18 @@ before the selected module target.
 Aggregate-contributing targets use double-colon (`::`) so multiple modules can contribute to the same target name. `make clean` runs the shared root cleanup and the `clean::` recipes from every imported module that defines them, in import order; for the Composer + Docker example above, that is root + composer + docker. The Codeception, PHPUnit, and Composer clean recipes are independent and do not invoke one another.
 
 ## Repository Layout
-- `modules/` – source makefiles for every module.
-  - `modules/Makefile` – root: shared `MF_*` path variables and the base `clean::` target.
-  - `modules/<module>/Makefile` – module entry targets (`install::`, `clean::`, ...).
-	- `modules/<module>/*.mk` – optional helper fragments (header + guard only, no root include).
-	- `modules/<module>/*.sh` – optional module-owned discovery helpers for config-derived paths.
+
+The module paths below describe the required convention, not a compliance
+inventory of the existing modules.
+
+- `modules/` – canonical source makefiles.
+  - `modules/Makefile` – root: shared `MF_*` path variables and base `clean::` target.
+  - `modules/<module>/Makefile` – module entry point, includes the root and registers public targets.
+  - `modules/<module>/prerequisites.mk` – required module prerequisite configuration.
+  - `modules/<module>/targets.mk` – required module target rules and recipes.
+  - `modules/<module>/*.mk` – optional non-target helper fragments (header + guard only, no root include).
+  - `modules/<module>/*.sh` – optional module-owned discovery helpers for config-derived paths.
+  - `modules/core/` – shared infrastructure; it is not a consumer module.
   - `modules/manifest.txt` – lists every published file (one path per line); `fetch` uses it to know what to download.
 - `.makefiles/` – generated runtime folder inside consuming projects. Holds two subtrees: `.makefiles/modules/` (the fetched makefiles, mirroring `modules/`) and `.makefiles/tools/` (provisioned binaries, e.g. `composer.phar`).
 - `.makefiles/cache/` – generated project cache folder for resolved runtime paths used by module targets.

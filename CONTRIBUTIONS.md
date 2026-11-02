@@ -13,39 +13,49 @@ started quickly.
 
 ## 1. Mental Model
 
+The tree below is the required scaffold, not an inventory or claim that every
+existing module already conforms; audit existing modules before reporting
+compliance.
+
 ```
 modules/
-  ├── Makefile            (root: shared variables, dispatch, helpers)
-  ├── manifest.txt        (lists every published file; fetch reads this)
-  ├── composer/.          (Composer module adding targets such as make install -> composer install)
-  │     ├── Makefile      (module entry point → includes root Makefile)
-  │     └── *.mk          (helper fragments → header + guard only)
-  │     └── *.sh          (optional module-owned helper scripts)
-  ├── phpunit/            (PHPUnit test and HTML coverage targets)
-  │     ├── Makefile
-  │     └── install-binary.mk (optional standalone PHPUnit PHAR installer)
-  ├── docker/             (Docker module placeholder: echopath diagnostic + stub clean; no real targets yet)
-  │     └── Makefile
-  ├── npm/                (npm dependency installation and generated-artifact cleanup)
-  │     └── Makefile
-  ├── rust/               (Rust build, test, clippy, fmt, and target-directory cleanup)
-  │     ├── Makefile
-  │     └── targets.mk
-  ├── typescript/         (TypeScript compile and typecheck targets)
-  │     └── Makefile
-  ├── vitest/             (Vitest test and coverage targets)
-  │     └── Makefile
-  └── <module>/
-		├── Makefile
-		└── <feature>.mk
+  ├── Makefile                 (root: shared variables, dispatch, helpers)
+  ├── manifest.txt             (lists every published file; fetch reads this)
+  ├── core/                    (shared infrastructure, not a consumer module)
+  └── <module>/                (one reusable consumer module)
+      ├── Makefile             (entry point: includes root and registers targets)
+      ├── prerequisites.mk     (module prerequisite configuration)
+      ├── targets.mk           (all target definitions and recipes)
+      ├── <helper>.mk          (optional non-target helper fragment)
+      └── <helper>.sh          (optional module-owned helper script)
 ```
 
 - **Root Makefile** (`modules/Makefile`): defines environment variables (`MF_*`) that every module consumes.
 - **Manifest** (`modules/manifest.txt`): one path per line (relative to `modules/`) for every file that `fetch` may download. The `fetch` script always pulls the root `Makefile` plus every line that starts with the requested module's name.
-- **Module Makefile** (`modules/<module>/Makefile`): exports entry targets (`install`, `clean`, etc.) and must include the root immediately after its header.
-- **Helper fragments** (`modules/<module>/*.mk`): provide optional targets and must *not* include the root directly; they rely on the module Makefile to do so.
+- **Module Makefile** (`modules/<module>/Makefile`): includes the root immediately after its header, then the guard and module fragments; it registers the module's public targets.
+- **Required fragments** (`modules/<module>/prerequisites.mk` and `targets.mk`): the former holds prerequisite configuration, and the latter owns all target definitions and recipes. Both follow the header + guard convention and must *not* include the root.
+- **Optional helper fragments** (`modules/<module>/*.mk`): provide variables or helper functions only; they must *not* include the root directly or define targets.
 - **Module scripts** (`modules/<module>/*.sh`): optional module-owned helpers (for example config path discovery). Keep them module-local; avoid module-specific logic in core.
 - **Core scripts** (`modules/core/*.sh`): shared helpers are allowed only when they are module-agnostic (for example reusable path handling and cleanup guardrails).
+
+### Standard module interface
+
+Every consumer module must provide public `clean`, `install`, and `help`
+targets, including an explicit no-op with a useful message when an operation
+does not apply. Register these targets alongside any other public targets in
+the module entry Makefile. Use `clean::`, `install::`, and `help::` so the
+contributions from imported modules compose in aggregate mode. `clean` must
+remove only module-owned generated artifacts; `install` prepares the module's
+dependencies; `help` describes the available targets and relevant options
+without side effects.
+
+Keep prerequisite configuration in `prerequisites.mk` and target declarations
+and recipes in `targets.mk`. The entry Makefile includes the root and its guard
+first, then includes `prerequisites.mk` followed by `targets.mk`. Do not put
+recipe bodies in `prerequisites.mk` or target rules in optional helper
+fragments. If there are no extra prerequisites, keep the required
+`prerequisites.mk` with its normal header and guard. List both required files
+and any additional module files in `modules/manifest.txt`.
 
 ### Aggregate and module-scoped invocation
 
@@ -73,45 +83,45 @@ under `modules/`; do not invent aliases or encode the namespace into the
 target name. For example, `modules/phpunit/Makefile` exposes its `test` target
 as `make phpunit test`.
 
-Register public targets in the module entry Makefile immediately after the
-shared root include and guard. The root derives the namespace from the entry
-file path; keep the public target list current when adding, renaming, or
-removing targets. Include public targets defined in helper `.mk` files, but
-omit private prerequisites. For example:
+Register public targets in the module entry Makefile after the shared root
+include and guard. The root derives the namespace from the entry file path;
+keep the list current when adding, renaming, or removing public targets. Always
+register `clean`, `install`, and `help` alongside any module-specific public
+targets, and omit private prerequisites. For example:
 
 ```make
 MF_CURRENT_MODULE_ENTRY := $(lastword $(filter %/modules/<module>/Makefile,$(MAKEFILE_LIST)))
-$(eval $(call mf_register_module,$(MF_CURRENT_MODULE_ENTRY),echopath test coverage coverage-open))
+$(eval $(call mf_register_module,$(MF_CURRENT_MODULE_ENTRY),clean install help echopath test coverage coverage-open))
 ```
 
-Define the actual recipes in the module or its included helpers. For a target
-that should also participate in aggregate `make <target>` behavior alongside
-other modules, use GNU Make's double-colon rule (`target::`); scoped invocation
-selects only the chosen module's registered implementation. The current
-composer module does not expose `build`, so `make composer build` is rejected
-until composer defines and registers that public target.
+Keep all target declarations and recipes in `targets.mk`; it may refer to
+prerequisite configuration from `prerequisites.mk`. Use GNU Make's double-colon
+rule (`target::`) for targets that contribute to aggregate `make <target>`
+behavior alongside other modules. Scoped invocation selects only the named
+module's registered implementation.
 
-The PHPUnit module registers `echopath`, `test`, `coverage`, `coverage-open`, and
-`install-phpunit-binary`. It uses the consuming project's Composer-installed
-`vendor/bin/phpunit` by default; the standalone PHAR installer is opt-in and
-does not replace that executable. Set `BROWSER` when the default browser opener
-is not suitable; coverage output paths are discovered from `phpunit.xml` and
-fall back to `coverage/`.
+Preserve the PHPUnit-specific targets `echopath`, `test`, `coverage`,
+`coverage-open`, and `install-phpunit-binary`; register them alongside the
+required `clean`, `install`, and `help` targets. The module uses the consuming
+project's Composer-installed `vendor/bin/phpunit` by default; the standalone
+PHAR installer is opt-in and does not replace that executable. Set `BROWSER`
+when the default browser opener is not suitable; coverage output paths are
+discovered from `phpunit.xml` and fall back to `coverage/`.
 
 Codeception and PHPUnit discover coverage paths with module-local scripts and
 persist resolved values to `.makefiles/cache/`. Path-dependent targets such as
 `coverage` and `coverage-open` should depend on the same cache file to
 guarantee consistent behavior within a run. Keep module `clean` targets
-indepe, TypeScript, and Rust follow the same dispatch/registration rules as
-existing modules. Keep scoped targets explicit (`make vitest test`,
+independent from cache-file prerequisites so base cleanup can remove generated
+folders without recreating `.makefiles/` mid-run.
+
+Apply the same dispatch and registration rules to Codeception, PHPUnit,
+TypeScript, and Rust. Keep scoped targets explicit (`make vitest test`,
 `make vitest coverage`, `make typescript test`, `make typescript build`,
 `make rust build`, `make rust test`, `make rust clippy`, `make rust fmt`) and
-ensure any new public targets are listed in module registration immediately when
-added. The Rust module resolves the cargo target directory from `cargo metadata`
-so `CARGO_TARGET_DIR` and `.cargo/config.toml` overrides are honored by `clean`es. Keep scoped targets explicit (`make vitest test`,
-`make vitest coverage`, `make typescript test`, `make typescript build`) and
-ensure any new public targets are listed in module registration immediately when
-added.
+register each new public target in the module entry Makefile when it is added.
+The Rust module resolves its cargo target directory from `cargo metadata`, so
+`CARGO_TARGET_DIR` and `.cargo/config.toml` overrides are honored by `clean`.
 
 The exact two-goal form is reserved for scoped dispatch. Unknown modules and
 targets fail before recipes run, print an actionable message to stderr, and
@@ -189,31 +199,34 @@ Checklist:
 	mkdir -p modules/<module>
 	cp modules/Makefile modules/<module>/Makefile   # as reference
 	```
-2. **Edit `modules/<module>/Makefile`**
-	- Insert header + guard.
-	- Add `-include .makefiles/modules/Makefile` (and any module-specific helper includes).
-	- Define your targets (prefer `target::` if you expect other files to append behavior).
-3. **Optional helper files**
-	- For reusable snippets (e.g., `install.mk`), create additional `.mk` files with the same header+guard but **without** including the root.
+2. **Configure `modules/<module>/Makefile`**
+  - Include `.makefiles/modules/Makefile` immediately after the header, then add the guard.
+  - Register `clean`, `install`, and `help`, plus every other public target.
+  - Include `prerequisites.mk` and then `targets.mk` after the root include and guard.
+3. **Create the required fragments**
+  - Put prerequisite configuration in `prerequisites.mk`; do not put recipe bodies there.
+  - Put all target declarations and recipes in `targets.mk`, using `::` for aggregate-contributing targets.
+  - For reusable non-target snippets, create optional `.mk` helpers with the same header + guard but **without** including the root or defining targets.
   - For module-specific path/config discovery, prefer a module-local helper script (for example `discover-paths.sh`) over adding module-aware logic to core.
 4. **Register in the manifest**
-  - Add every new file (module `Makefile`, any `.mk` helpers, and any module-local scripts) to `modules/manifest.txt`, one path per line relative to `modules/`. Without this, `fetch` will not download the file.
+  - Add the module `Makefile`, `prerequisites.mk`, `targets.mk`, any `.mk` helpers, and module-local scripts to `modules/manifest.txt`, one path per line relative to `modules/`. Without this, `fetch` will not download the files.
 5. **Update timestamps**
-	- After editing, run `date -r modules/<module>/Makefile +"%Y-%m-%d %H:%M:%S"` and copy the result into the header.
+  - After editing, run `date -r modules/<module>/Makefile +"%Y-%m-%d %H:%M:%S"` and copy the result into the header.
 
 ## 5. Editing an Existing Module
 
 ```
-┌──────────────┬──────────────────────────────────────────────┐
-│ Step         │ What to check                                 │
-├──────────────┼──────────────────────────────────────────────┤
-│ 1. Read spec │ Open the instruction file (linked above).     │
-│ 2. Headers   │ Ensure filename + timestamp + description set.│
-│ 3. Guard     │ Module: root include, THEN guard. Helper: guard only. │
-│ 4. Includes  │ Module Makefiles include root once (before guard); helpers never. │
-│ 5. Targets   │ Use `clean::` / `install::` when extending.    │
-│ 6. Tests     │ Run the relevant targets (e.g., `make clean`). │
-└──────────────┴──────────────────────────────────────────────┘
+┌──────────────┬──────────────────────────────────────────────────────┐
+│ Step         │ What to check                                         │
+├──────────────┼──────────────────────────────────────────────────────┤
+│ 1. Read spec │ Open the instruction file (linked above).             │
+│ 2. Headers   │ Ensure filename + timestamp + description are set.    │
+│ 3. Guard     │ Module: root include, THEN guard. Helpers: guard only. │
+│ 4. Includes  │ Include prerequisites.mk, then targets.mk.             │
+│ 5. Files     │ Prerequisites / targets stay in their named files.     │
+│ 6. Targets   │ Register `clean`, `install`, and `help`.              │
+│ 7. Tests     │ Run safe module targets in an example workspace.      │
+└──────────────┴──────────────────────────────────────────────────────┘
 ```
 
 ## 6. Style & Safety Tips
@@ -231,9 +244,12 @@ Before submitting:
 - [ ] Headers updated with accurate timestamps & descriptions.
 - [ ] `MF_TOOLS_ROOT` guard present and correctly references the current filename.
 - [ ] Module Makefiles include `-include .makefiles/modules/Makefile` directly after the header.
-- [ ] Helper `.mk` files avoid extra includes.
+- [ ] Module Makefiles include `prerequisites.mk` then `targets.mk` after the root include and guard.
+- [ ] Every module provides and registers `clean`, `install`, and `help`; no-op behavior is explicit where a target has no work.
+- [ ] `prerequisites.mk` holds prerequisite configuration; `targets.mk` contains target definitions and recipes.
+- [ ] Optional helper `.mk` files avoid extra includes and do not define targets.
 - [ ] Every new/renamed file is listed in `modules/manifest.txt`.
-- [ ] `make <module-target>` succeeds locally in the relevant `examples/<module>/` project (or equivalent sample workspace).
+- [ ] Verify `make <module> help` and `make <module> clean` in a safe example workspace; exercise `install` where appropriate.
 - [ ] Documentation (README/CONTRIBUTIONS) updated if behavior is user-visible.
 - [ ] Commits focus on a single module or cohesive change set.
 
