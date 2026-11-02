@@ -1,6 +1,6 @@
 #
 # Filename: modules/phpunit/Makefile
-# Last edited: 2026-10-20 18:10:00
+# Last edited: 2026-11-02 18:26:11
 # Description: PHPUnit module controller that registers targets and includes recipes.
 #
 
@@ -11,7 +11,7 @@ $(error MF_TOOLS_ROOT is not set. Include modules/Makefile before using modules/
 endif
 
 MF_CURRENT_MODULE_ENTRY := $(lastword $(filter %/modules/phpunit/Makefile,$(MAKEFILE_LIST)))
-$(eval $(call mf_register_module,$(MF_CURRENT_MODULE_ENTRY),echopath test coverage coverage-open install-phpunit-binary clean))
+$(eval $(call mf_register_module,$(MF_CURRENT_MODULE_ENTRY),echopath test coverage coverage-open install-phpunit-binary clean install help))
 
 # PHPUnit is normally installed by the consuming project's Composer manifest.
 # Override PHPUNIT when a project keeps the executable somewhere else.
@@ -28,7 +28,7 @@ MF_PHPUNIT_PHAR_TARGET := $(subst $(MF_PHPUNIT_SPACE),\$(MF_PHPUNIT_SPACE),$(PHP
 PHPUNIT_VERSION ?= latest
 PHPUNIT_URL ?= $(if $(filter latest,$(PHPUNIT_VERSION)),https://phar.phpunit.de/phpunit.phar,https://phar.phpunit.de/phpunit-$(PHPUNIT_VERSION).phar)
 
--include .makefiles/modules/phpunit/install-binary.mk
+-include .makefiles/modules/phpunit/prerequisites.mk
 
 -include .makefiles/modules/phpunit/targets.mk
 

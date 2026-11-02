@@ -24,8 +24,8 @@ modules/
   ├── core/                    (shared infrastructure, not a consumer module)
   └── <module>/                (one reusable consumer module)
       ├── Makefile             (entry point: includes root and registers targets)
-      ├── prerequisites.mk     (module prerequisite configuration)
-      ├── targets.mk           (all target definitions and recipes)
+      ├── prerequisites.mk     (prerequisite configuration and private support rules)
+      ├── targets.mk           (public target definitions and recipes)
       ├── <helper>.mk          (optional non-target helper fragment)
       └── <helper>.sh          (optional module-owned helper script)
 ```
@@ -33,7 +33,7 @@ modules/
 - **Root Makefile** (`modules/Makefile`): defines environment variables (`MF_*`) that every module consumes.
 - **Manifest** (`modules/manifest.txt`): one path per line (relative to `modules/`) for every file that `fetch` may download. The `fetch` script always pulls the root `Makefile` plus every line that starts with the requested module's name.
 - **Module Makefile** (`modules/<module>/Makefile`): includes the root immediately after its header, then the guard and module fragments; it registers the module's public targets.
-- **Required fragments** (`modules/<module>/prerequisites.mk` and `targets.mk`): the former holds prerequisite configuration, and the latter owns all target definitions and recipes. Both follow the header + guard convention and must *not* include the root.
+- **Required fragments** (`modules/<module>/prerequisites.mk` and `targets.mk`): the former holds prerequisite configuration plus private prerequisite/support rules and their recipes; the latter owns public module target definitions and recipes. Both follow the header + guard convention and must *not* include the root.
 - **Optional helper fragments** (`modules/<module>/*.mk`): provide variables or helper functions only; they must *not* include the root directly or define targets.
 - **Module scripts** (`modules/<module>/*.sh`): optional module-owned helpers (for example config path discovery). Keep them module-local; avoid module-specific logic in core.
 - **Core scripts** (`modules/core/*.sh`): shared helpers are allowed only when they are module-agnostic (for example reusable path handling and cleanup guardrails).
@@ -46,16 +46,18 @@ does not apply. Register these targets alongside any other public targets in
 the module entry Makefile. Use `clean::`, `install::`, and `help::` so the
 contributions from imported modules compose in aggregate mode. `clean` must
 remove only module-owned generated artifacts; `install` prepares the module's
-dependencies; `help` describes the available targets and relevant options
-without side effects.
+dependencies; `help` lists the registered public targets without side effects.
+Document detailed behavior and options in the README.
 
-Keep prerequisite configuration in `prerequisites.mk` and target declarations
+Keep prerequisite configuration and private prerequisite/support rules (and
+their recipes) in `prerequisites.mk`; keep public module target declarations
 and recipes in `targets.mk`. The entry Makefile includes the root and its guard
 first, then includes `prerequisites.mk` followed by `targets.mk`. Do not put
-recipe bodies in `prerequisites.mk` or target rules in optional helper
+public target rules in `prerequisites.mk` or target rules in optional helper
 fragments. If there are no extra prerequisites, keep the required
-`prerequisites.mk` with its normal header and guard. List both required files
-and any additional module files in `modules/manifest.txt`.
+`prerequisites.mk` with its normal header and guard; it may be otherwise empty.
+List both required files and any additional module files in
+`modules/manifest.txt`.
 
 ### Aggregate and module-scoped invocation
 
@@ -94,11 +96,11 @@ MF_CURRENT_MODULE_ENTRY := $(lastword $(filter %/modules/<module>/Makefile,$(MAK
 $(eval $(call mf_register_module,$(MF_CURRENT_MODULE_ENTRY),clean install help echopath test coverage coverage-open))
 ```
 
-Keep all target declarations and recipes in `targets.mk`; it may refer to
-prerequisite configuration from `prerequisites.mk`. Use GNU Make's double-colon
-rule (`target::`) for targets that contribute to aggregate `make <target>`
-behavior alongside other modules. Scoped invocation selects only the named
-module's registered implementation.
+Keep all public module target declarations and recipes in `targets.mk`; it may
+depend on private prerequisite/support rules from `prerequisites.mk`. Use GNU
+Make's double-colon rule (`target::`) for targets that contribute to aggregate
+`make <target>` behavior alongside other modules. Scoped invocation selects
+only the named module's registered implementation.
 
 Preserve the PHPUnit-specific targets `echopath`, `test`, `coverage`,
 `coverage-open`, and `install-phpunit-binary`; register them alongside the
@@ -204,8 +206,8 @@ Checklist:
   - Register `clean`, `install`, and `help`, plus every other public target.
   - Include `prerequisites.mk` and then `targets.mk` after the root include and guard.
 3. **Create the required fragments**
-  - Put prerequisite configuration in `prerequisites.mk`; do not put recipe bodies there.
-  - Put all target declarations and recipes in `targets.mk`, using `::` for aggregate-contributing targets.
+  - Put prerequisite configuration and private prerequisite/support rules in `prerequisites.mk`.
+  - Put public target declarations and recipes in `targets.mk`, using `::` for aggregate-contributing targets.
   - For reusable non-target snippets, create optional `.mk` helpers with the same header + guard but **without** including the root or defining targets.
   - For module-specific path/config discovery, prefer a module-local helper script (for example `discover-paths.sh`) over adding module-aware logic to core.
 4. **Register in the manifest**
@@ -246,7 +248,7 @@ Before submitting:
 - [ ] Module Makefiles include `-include .makefiles/modules/Makefile` directly after the header.
 - [ ] Module Makefiles include `prerequisites.mk` then `targets.mk` after the root include and guard.
 - [ ] Every module provides and registers `clean`, `install`, and `help`; no-op behavior is explicit where a target has no work.
-- [ ] `prerequisites.mk` holds prerequisite configuration; `targets.mk` contains target definitions and recipes.
+- [ ] `prerequisites.mk` holds prerequisite configuration and private support rules; `targets.mk` contains public target definitions and recipes.
 - [ ] Optional helper `.mk` files avoid extra includes and do not define targets.
 - [ ] Every new/renamed file is listed in `modules/manifest.txt`.
 - [ ] Verify `make <module> help` and `make <module> clean` in a safe example workspace; exercise `install` where appropriate.

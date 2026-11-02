@@ -1,34 +1,20 @@
 #
 # Filename: modules/vitest/targets.mk
-# Last edited: 2026-10-20 22:40:56
+# Last edited: 2026-11-02 18:27:02
 # Description: Vitest module target recipes.
 #
 
-.PHONY: echopath test coverage coverage-open clean vitest-prerequisites
+ifndef MF_TOOLS_ROOT
+$(error MF_TOOLS_ROOT is not set. Include modules/Makefile before using modules/vitest/targets.mk.)
+endif
 
-vitest-prerequisites:
-	@if ! (cd "$(MF_PROJECT_ROOT)" && command -v "$(NPM)" >/dev/null 2>&1); then \
-		echo "[vitest] npm executable not found: $(NPM)" >&2; \
-		exit 1; \
-	elif [ ! -f "$(MF_PROJECT_ROOT)package.json" ]; then \
-		echo "[vitest] package.json not found in $(MF_PROJECT_ROOT)" >&2; \
-		exit 1; \
-	elif [ -f "$(VITEST_BIN)" ] || (cd "$(MF_PROJECT_ROOT)" && command -v vitest >/dev/null 2>&1); then \
-		:; \
-	else \
-		echo "[vitest] Vitest executable not found; attempting npm install."; \
-		if [ -f "$(MF_MODULES_ROOT)npm/Makefile" ]; then \
-			$(MAKE) --no-print-directory npm install || exit $$?; \
-		else \
-			$(MAKE) --no-print-directory install || exit $$?; \
-		fi; \
-		if [ -f "$(VITEST_BIN)" ] || (cd "$(MF_PROJECT_ROOT)" && command -v vitest >/dev/null 2>&1); then \
-			:; \
-		else \
-			echo "[vitest] Vitest executable is still missing: $(VITEST_BIN)" >&2; \
-			exit 1; \
-		fi; \
-	fi
+ifndef MF_VITEST_TARGETS_INCLUDED
+MF_VITEST_TARGETS_INCLUDED := 1
+
+.PHONY: help echopath test coverage coverage-open clean install
+
+help::
+	@printf '%s\n' 'vitest targets: $(MF_MODULE_TARGETS_vitest)'
 
 echopath::
 	@echo "Vitest module Makefile"
@@ -61,21 +47,6 @@ coverage:: vitest-prerequisites
 	else \
 		"$(NPM)" exec -- vitest run --coverage --coverage.reporter=html --coverage.reportsDirectory "$$coverage_dir" $(VITEST_ARGS); \
 	fi
-
-$(MF_VITEST_COVERAGE_INDEX_CACHE_PATH): coverage
-	@mkdir -p "$(dir $@)"
-	@coverage_dir="$(VITEST_COVERAGE_DIR)"; \
-	case "$$coverage_dir" in \
-		/*) ;; \
-		*) coverage_dir="$(MF_PROJECT_ROOT)$$coverage_dir" ;; \
-	esac; \
-	coverage_index="$$coverage_dir/index.html"; \
-	if ! (cd "$(MF_PROJECT_ROOT)" && [ -f "$$coverage_index" ]); then \
-		echo "[vitest] Coverage report was not generated: $$coverage_index" >&2; \
-		exit 1; \
-	fi; \
-	printf '%s\n' "$$coverage_index" > "$@"
-
 coverage-open:: $(MF_VITEST_COVERAGE_INDEX_CACHE_PATH)
 	@if [ -n "$(BROWSER)" ]; then \
 		if ! (cd "$(MF_PROJECT_ROOT)" && command -v "$(BROWSER)" >/dev/null 2>&1); then \
@@ -96,6 +67,9 @@ coverage-open:: $(MF_VITEST_COVERAGE_INDEX_CACHE_PATH)
 		exit 1; \
 	fi
 
+install:: vitest-prerequisites
+	@echo "[vitest] Vitest prerequisites are ready"
+
 clean::
 	@coverage_dir="$(VITEST_COVERAGE_DIR)"; \
 	project_root="$(MF_PROJECT_ROOT)"; \
@@ -113,3 +87,5 @@ clean::
 		*) coverage_dir="$(MF_PROJECT_ROOT)$$coverage_dir" ;; \
 	esac; \
 	sh "$$remove_script" "$$project_root" vitest dir "$$coverage_dir"
+
+endif

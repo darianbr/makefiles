@@ -1,6 +1,6 @@
 #
 # Filename: modules/docker/Makefile
-# Last edited: 2026-10-20 18:10:00
+# Last edited: 2026-11-02 18:26:11
 # Description: Docker module controller that registers targets and includes recipes.
 #
 
@@ -11,6 +11,7 @@ $(error MF_TOOLS_ROOT is not set. Include modules/Makefile before using modules/
 endif
 
 MF_CURRENT_MODULE_ENTRY := $(lastword $(filter %/modules/docker/Makefile,$(MAKEFILE_LIST)))
-$(eval $(call mf_register_module,$(MF_CURRENT_MODULE_ENTRY),echopath clean))
+$(eval $(call mf_register_module,$(MF_CURRENT_MODULE_ENTRY),echopath clean install help))
 
+-include .makefiles/modules/docker/prerequisites.mk
 -include .makefiles/modules/docker/targets.mk

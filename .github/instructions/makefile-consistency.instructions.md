@@ -13,8 +13,8 @@ The root `modules/Makefile` provides shared functionality and variables for all 
 - Folders directly under `modules/` define modules (e.g., `composer`, `docker`, `phpunit`, `typescript`, `vitest`, etc.).
 - Each module **must** contain a file named `Makefile` at the base of the module folder (e.g. `modules/<module>/Makefile`).
 - Every `modules/<module>/Makefile` **must** include the root Makefile located at `modules/Makefile` directly after the header (see Headers below) leaving a blank line.
-- Each module must include `prerequisites.mk` for prerequisite configuration and `targets.mk` for target definitions and recipes. Both files are module helper fragments: they **must** include the header (see Headers below) and must not include the root library Makefile.
-- Optional additional `*.mk` helpers may hold variables, functions, or other non-target support logic. They must include the header, must not include the root library Makefile, and must not define target rules; keep target definitions and recipes in `targets.mk`.
+- Each module must include `prerequisites.mk` for prerequisite configuration and private prerequisite/support rules, and `targets.mk` for public target definitions and recipes. Both files are module helper fragments: they **must** include the header (see Headers below) and must not include the root library Makefile.
+- Optional additional `*.mk` helpers may hold variables, functions, or other non-target support logic. They must include the header, must not include the root library Makefile, and must not define target rules; keep prerequisite/support rules in `prerequisites.mk` and public target definitions and recipes in `targets.mk`.
 - Module-specific helper scripts may live under `modules/<module>/*.sh` (for example config/path discovery helpers). Keep module behavior module-local; core files should remain module-agnostic.
 - Generic shared helper scripts may live under `modules/core/*.sh` when they are module-agnostic (for example reusable path and guardrail helpers).
 - All module files under `modules/**/*` **must always** follow the instructions outlined in the header section below.
@@ -32,8 +32,8 @@ verify modules before reporting their current status. The shared root and
 - `install` installs or prepares the module's required project dependencies.
   If installation is not applicable, keep the target and print a clear
   no-op message rather than omitting it.
-- `help` explains the module's standard and module-specific public targets and
-  relevant options without changing project state.
+- `help` lists the module's registered public targets without changing
+  project state. Document detailed behavior and options in the README.
 
 Register all three standard targets, plus every other public target, in the
 module entry Makefile's `mf_register_module` call. Define the standard targets
@@ -49,15 +49,14 @@ include and `MF_TOOLS_ROOT` guard, in this order:
 -include .makefiles/modules/<module>/targets.mk
 ```
 
-Keep prerequisite configuration (such as prerequisite-list variables) in
-`prerequisites.mk`; it must not define target rules or contain recipe bodies.
-Keep all target rules and recipes in `targets.mk`, referring to prerequisite
-configuration declared in `prerequisites.mk`. Other `.mk` files may provide
-variables or helper functions, but must not define targets. Both required
-fragments need the normal header and guard and must be listed in
-`modules/manifest.txt`; if a module has no extra prerequisites, an otherwise
-empty `prerequisites.mk` is acceptable. Add any newly created files to the
-manifest so `fetch` publishes them.
+Keep prerequisite configuration and private prerequisite/support rules (and
+their recipes) in `prerequisites.mk`. Keep public module target rules and
+recipes in `targets.mk`; they may depend on private prerequisite targets.
+Other `.mk` files may provide variables or helper functions, but must not
+define target rules. Both required fragments need the normal header and guard
+and must be listed in `modules/manifest.txt`; if a module has no extra
+prerequisites, an otherwise empty `prerequisites.mk` is acceptable. Add any
+newly created files to the manifest so `fetch` publishes them.
 
 ## Public Module Targets and Namespacing
 
@@ -157,7 +156,7 @@ modules/
   ├── manifest.txt            # Every file published by fetch
   └── <module>/               # One consumer module
       ├── Makefile            # Entry point, includes root and registers targets
-      ├── prerequisites.mk    # Module prerequisite configuration
-      ├── targets.mk          # All target definitions and recipes
+      ├── prerequisites.mk    # Prerequisite configuration and private support rules
+      ├── targets.mk          # Public target definitions and recipes
       ├── helper.mk           # Optional non-target helper; same header + guard
       └── helper.sh           # Optional module-owned helper script
