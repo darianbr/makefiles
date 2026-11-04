@@ -14,6 +14,11 @@ This folder contains standalone MVP examples for each module. Pick one folder, r
 - [stacked-tests](stacked-tests): Vitest + PHPUnit + Codeception in one project
 - [docker](docker): Docker placeholder module wiring
 
+## Help
+
+Run `make help` for imported modules and aggregate targets, or run the scoped
+form `make <module> help` to list one module's public targets.
+
 ## Common bootstrap pattern
 
 Each example uses:

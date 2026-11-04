@@ -1,6 +1,6 @@
 #
 # Filename: modules/npm/targets.mk
-# Last edited: 2026-11-02 18:48:48
+# Last edited: 2026-11-04 20:19:22
 # Description: npm module target recipes.
 #
 
@@ -11,19 +11,7 @@ endif
 ifndef MF_NPM_TARGETS_INCLUDED
 MF_NPM_TARGETS_INCLUDED := 1
 
-.PHONY: help echopath install clean
-
-help::
-	@printf '%s\n' 'npm targets: $(MF_MODULE_TARGETS_npm)'
-
-echopath::
-	@echo "npm module Makefile"
-	@echo "MF_PROJECT_ROOT: $(MF_PROJECT_ROOT)"
-	@echo "MF_MAKEFILES_ROOT: $(MF_MAKEFILES_ROOT)"
-	@echo "MF_MODULES_ROOT: $(MF_MODULES_ROOT)"
-	@echo "MF_TOOLS_ROOT: $(MF_TOOLS_ROOT)"
-	@echo "NPM: $(NPM)"
-	@echo ""
+.PHONY: help install clean
 
 # Prefer npm ci for lockfile-driven installs; fall back to npm install when
 # only package.json is present so first-time projects can bootstrap.

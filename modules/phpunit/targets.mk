@@ -1,6 +1,6 @@
 #
 # Filename: modules/phpunit/targets.mk
-# Last edited: 2026-11-02 18:27:36
+# Last edited: 2026-11-04 20:19:22
 # Description: PHPUnit module target recipes.
 #
 
@@ -11,21 +11,7 @@ endif
 ifndef MF_PHPUNIT_TARGETS_INCLUDED
 MF_PHPUNIT_TARGETS_INCLUDED := 1
 
-.PHONY: help echopath test coverage coverage-open clean install install-phpunit-binary
-
-help::
-	@printf '%s\n' 'phpunit targets: $(MF_MODULE_TARGETS_phpunit)'
-
-echopath:: $(MF_PHPUNIT_COVERAGE_CACHE_PATH)
-	@echo "PHPUnit module Makefile"
-	@echo "MF_PROJECT_ROOT: $(MF_PROJECT_ROOT)"
-	@echo "MF_MAKEFILES_ROOT: $(MF_MAKEFILES_ROOT)"
-	@echo "MF_MODULES_ROOT: $(MF_MODULES_ROOT)"
-	@echo "MF_TOOLS_ROOT: $(MF_TOOLS_ROOT)"
-	@echo "PHPUNIT: $(PHPUNIT)"
-	@echo "PHPUNIT_CONFIG: $(MF_PHPUNIT_CONFIG_FILE)"
-	@coverage_dir=$$(cat "$(MF_PHPUNIT_COVERAGE_CACHE_PATH)"); echo "PHPUNIT_COVERAGE_DIR: $$coverage_dir"
-	@echo ""
+.PHONY: help test coverage coverage-open clean install install-phpunit-binary
 
 test:: phpunit-prerequisites
 	@cd "$(MF_PROJECT_ROOT)" && \

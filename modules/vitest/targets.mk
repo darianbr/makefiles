@@ -1,6 +1,6 @@
 #
 # Filename: modules/vitest/targets.mk
-# Last edited: 2026-11-02 18:27:02
+# Last edited: 2026-11-04 20:19:22
 # Description: Vitest module target recipes.
 #
 
@@ -11,21 +11,7 @@ endif
 ifndef MF_VITEST_TARGETS_INCLUDED
 MF_VITEST_TARGETS_INCLUDED := 1
 
-.PHONY: help echopath test coverage coverage-open clean install
-
-help::
-	@printf '%s\n' 'vitest targets: $(MF_MODULE_TARGETS_vitest)'
-
-echopath::
-	@echo "Vitest module Makefile"
-	@echo "MF_PROJECT_ROOT: $(MF_PROJECT_ROOT)"
-	@echo "MF_MAKEFILES_ROOT: $(MF_MAKEFILES_ROOT)"
-	@echo "MF_MODULES_ROOT: $(MF_MODULES_ROOT)"
-	@echo "MF_TOOLS_ROOT: $(MF_TOOLS_ROOT)"
-	@echo "NPM: $(NPM)"
-	@echo "VITEST_BIN: $(VITEST_BIN)"
-	@echo "VITEST_COVERAGE_DIR: $(VITEST_COVERAGE_DIR)"
-	@echo ""
+.PHONY: help test coverage coverage-open clean install
 
 test:: vitest-prerequisites
 	@cd "$(MF_PROJECT_ROOT)" && \

@@ -117,13 +117,25 @@ An unavailable target identifies the selected module and lists its available
 targets:
 
 ```text
-makefiles: target 'build' is not available in module 'composer'; available targets: clean echopath help install install-composer-binary
+makefiles: target 'build' is not available in module 'composer'; available targets: clean help install install-composer-binary
 ```
 
 Validation happens before module recipes run. The exact two-goal form is
 reserved for module dispatch, so `make name target` is not treated as two
 independent aggregate goals. Set `MF_LEGACY_GOALS=1` only when a consumer needs
 the pre-feature two-goal GNU Make interpretation.
+
+### Help
+
+Run `make help` for top-level usage, imported modules, and aggregate target
+names. Run `make <module> help` to list one module's registered public targets;
+for example, `make composer help`. Help is informational only: it does not run
+module prerequisites, discover paths, or modify generated files.
+If the consumer's `.makefiles/` cache is absent, its normal include bootstrap
+may fetch module files before Make executes the help target.
+The former `echopath` path diagnostic is retired; module help lists registered
+targets instead. Consumers with cached module files should refresh them with
+`fetch <module> --force` to receive the new help contract.
 
 ### Module names and public target registration
 
@@ -141,6 +153,12 @@ contributor workflow and required registration pattern are in
 [CONTRIBUTIONS.md](CONTRIBUTIONS.md); this README section is the canonical
 reference for invocation and compatibility behavior.
 
+Every module must register `clean`, `install`, and `help` exactly once along
+with its other public targets. Registration rejects missing required targets,
+duplicate names, and the retired `echopath` target. `help` must not have
+prerequisites or side effects; `clean` must be safe, repeatable, and independent
+of discovery/cache prerequisites.
+
 Keep the one-argument interface intact: `make <target>` continues to aggregate
 the target across imported modules in GNU Make import order, and shared root
 contributions remain available there. The exact two-goal form is the only
@@ -156,16 +174,16 @@ before the selected module target.
 ## Module Targets
 
 Every consumer module is required to expose `clean`, `install`, and `help`,
-using an explicit no-op with a useful message when a target has no work. See
-[CONTRIBUTIONS.md](CONTRIBUTIONS.md) for the required file layout. The table
-below documents target behavior; it is not an audit that every existing module
-already complies.
+using an explicit no-op with a useful message when a target has no work. The
+shared registry rejects missing or duplicate registrations and the retired
+`echopath` target. See [CONTRIBUTIONS.md](CONTRIBUTIONS.md) for the required
+file layout and target safety rules.
 
 | Module | Target | Behavior |
 |--------|--------|----------|
 | (root) | `clean::` | Removes `.makefiles/` (including `.makefiles/cache/`); skips when absent. |
-| all modules | `help::` | Prints that module's registered public targets without changing project state. |
-| codeception | `echopath::` | Diagnostic: prints the module name, resolved `MF_*` paths, Codeception executable, and coverage directory. |
+| (root) | `help` | Shows top-level usage, imported modules, and aggregate target names. |
+| all modules | `help` | Lists registered public targets without changing project state. |
 | codeception | `install::` | Checks PHP and Codeception; attempts the Composer install if the Codeception executable is missing. |
 | codeception | `test::` | Runs the Composer-installed Codeception executable. |
 | codeception | `coverage::` | Runs Codeception with HTML coverage output in the path resolved from `codeception.yml` (`paths.output`) plus `/coverage` (fallback: `_output/coverage`). |
@@ -173,34 +191,27 @@ already complies.
 | codeception | `clean::` | Removes Codeception suite artefacts: coverage output, support output, and main output directory (resolved from `codeception.yml`; fallbacks `_output/coverage`, `_support`, `_output`). |
 | composer | `install::` | Runs `composer install` in the project root. First provisions `composer.phar` into `.makefiles/tools/` (via `install-composer-binary`). |
 | composer | `clean::` | Removes `vendor/` — only when both `vendor/` and `composer.lock` exist; otherwise prints a skip message. |
-| composer | `echopath::` | Diagnostic: prints the module name and the resolved `MF_*` paths. |
 | composer | `install-composer-binary` | Downloads the Composer installer, verifies its SHA-384 signature, and installs `composer.phar` into `.makefiles/tools/`. |
-| docker | `echopath::` | Diagnostic: prints the module name and the resolved `MF_*` paths. |
 | docker | `install::` | Checks for the Docker CLI and reports that project services and images remain project-specific. |
 | docker | `clean::` | No-op: project containers and images are project-specific and are not removed. |
-| npm | `echopath::` | Diagnostic: prints the module name, resolved `MF_*` paths, and npm executable. |
 | npm | `install::` | Runs `npm ci` in the project root when `package-lock.json` or `npm-shrinkwrap.json` exists; otherwise runs `npm install` when only `package.json` is present. Set `NPM` or `NPM_INSTALL_ARGS` to customize the command. |
 | npm | `clean::` | Removes generated directories listed in `NPM_CLEAN_DIRS` (defaults: `node_modules`, `dist`, `build`, `coverage`, `.next`, `.nuxt`, `.output`); leaves source files and lockfiles untouched. |
-| phpunit | `echopath::` | Diagnostic: prints the module name, resolved `MF_*` paths, PHPUnit executable, and coverage directory. |
 | phpunit | `install::` | Checks PHP and PHPUnit; attempts the Composer install if the PHPUnit executable is missing. |
 | phpunit | `install-phpunit-binary` | Downloads the optional standalone PHPUnit PHAR into `.makefiles/tools/` (or `PHPUNIT_PHAR`). |
 | phpunit | `test::` | Runs the Composer-installed PHPUnit executable against the project test suite. |
 | phpunit | `coverage::` | Runs PHPUnit with `--coverage-html` and writes the report to the path resolved from `phpunit.xml` HTML report config (fallback: `coverage/`). |
 | phpunit | `coverage-open::` | Regenerates the HTML coverage report and opens `coverage/index.html` with `BROWSER`, `xdg-open`, or `open`. |
 | phpunit | `clean::` | Removes PHPUnit suite artefacts: HTML coverage output (resolved from `phpunit.xml` or fallback `coverage/`), `.phpunit.cache`, and `.phpunit.result.cache`. |
-| rust | `echopath::` | Diagnostic: prints the module name, resolved `MF_*` paths, cargo executable, and target directory. |
 | rust | `install::` | Runs `cargo fetch` in the project root. |
 | rust | `build::` | Runs `cargo build` in the project root. Set `CARGO_BUILD_ARGS` to pass extra flags (for example `--release`). |
 | rust | `test::` | Runs `cargo test` in the project root. Set `CARGO_TEST_ARGS` to pass extra flags. |
 | rust | `clippy::` | Runs `cargo clippy` in the project root. Set `CARGO_CLIPPY_ARGS` to pass extra flags (for example `-- -D warnings`). |
 | rust | `fmt::` | Runs `cargo fmt` in the project root. Set `CARGO_FMT_ARGS` to pass extra flags (for example `-- --check`). |
 | rust | `clean::` | Removes the cargo target directory through shared clean guardrails. The effective directory is resolved from `cargo metadata` (honoring `CARGO_TARGET_DIR` and `.cargo/config.toml`) with a fallback to `target`. |
-| typescript | `echopath::` | Diagnostic: prints the module name, resolved `MF_*` paths, npm executable, and TypeScript configuration values. |
 | typescript | `install::` | Checks npm, `package.json`, and the TypeScript project; attempts npm install if TypeScript is missing. |
 | typescript | `build::` | Runs TypeScript compilation using the configured project file (default `tsconfig.json`) and output directory (default `build/typescript`). |
 | typescript | `test::` | Runs TypeScript type-check mode (`--noEmit`) using the configured project file. |
 | typescript | `clean::` | Removes TypeScript build artefacts (`build/typescript` and `.tsbuildinfo`) through shared clean guardrails. |
-| vitest | `echopath::` | Diagnostic: prints the module name, resolved `MF_*` paths, Vitest executable, and configured coverage directory. |
 | vitest | `install::` | Checks npm and `package.json`; attempts npm install if Vitest is missing. |
 | vitest | `test::` | Runs Vitest in run mode (`vitest run`). |
 | vitest | `coverage::` | Runs Vitest with HTML coverage output (default directory `coverage/vitest`). |
@@ -215,7 +226,7 @@ The module paths below describe the required convention, not a compliance
 inventory of the existing modules.
 
 - `modules/` – canonical source makefiles.
-  - `modules/Makefile` – root: shared `MF_*` path variables and base `clean::` target.
+  - `modules/Makefile` – root: shared `MF_*` path variables, dispatch, help, and base `clean::` target.
   - `modules/<module>/Makefile` – module entry point, includes the root and registers public targets.
   - `modules/<module>/prerequisites.mk` – required prerequisite configuration and private support rules.
   - `modules/<module>/targets.mk` – required public module target rules and recipes.

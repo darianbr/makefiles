@@ -37,9 +37,22 @@ verify modules before reporting their current status. The shared root and
 
 Register all three standard targets, plus every other public target, in the
 module entry Makefile's `mf_register_module` call. Define the standard targets
-with double-colon rules (`clean::`, `install::`, `help::`) so imported modules
-can contribute to aggregate invocations. Keep private prerequisites out of the
-public registration list.
+with double-colon rules (`clean::`, `install::`) so imported modules can
+contribute to aggregate invocations. The root owns top-level `make help`, and
+the registry generates side-effect-free `make <module> help` from the module's
+registration. Help must have no prerequisites, tool checks, network access,
+discovery, cache generation, or other project side effects. Keep private
+prerequisites out of the public registration list. `clean` must be safe,
+repeatable, limited to documented generated outputs, and independent of
+discovery/cache prerequisites.
+
+This requirement applies to the help target itself; a consumer's ordinary
+include/bootstrap rule may fetch missing cached module files before Make runs
+any target.
+
+The registry rejects missing `clean`, `install`, or `help` registrations,
+duplicate public target names, and the retired `echopath` target. Register each
+public target exactly once.
 
 Each module entry Makefile includes the required fragments after the root
 include and `MF_TOOLS_ROOT` guard, in this order:
@@ -76,7 +89,7 @@ public targets. Example:
 
 ```
 MF_CURRENT_MODULE_ENTRY := $(lastword $(filter-out %/modules/Makefile,$(MAKEFILE_LIST)))
-$(eval $(call mf_register_module,$(MF_CURRENT_MODULE_ENTRY),clean install help echopath test coverage coverage-open))
+$(eval $(call mf_register_module,$(MF_CURRENT_MODULE_ENTRY),clean install help test coverage coverage-open))
 ```
 
 Use double-colon rules (`target::`) for public targets that should continue to

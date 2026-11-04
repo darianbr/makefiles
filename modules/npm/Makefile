@@ -1,6 +1,6 @@
 #
 # Filename: modules/npm/Makefile
-# Last edited: 2026-11-02 18:26:11
+# Last edited: 2026-11-04 20:19:22
 # Description: npm module controller that registers targets and includes recipes.
 #
 
@@ -11,7 +11,7 @@ $(error MF_TOOLS_ROOT is not set. Include modules/Makefile before using modules/
 endif
 
 MF_CURRENT_MODULE_ENTRY := $(lastword $(filter %/modules/npm/Makefile,$(MAKEFILE_LIST)))
-$(eval $(call mf_register_module,$(MF_CURRENT_MODULE_ENTRY),echopath install clean help))
+$(eval $(call mf_register_module,$(MF_CURRENT_MODULE_ENTRY),install clean help))
 
 NPM ?= npm
 NPM_INSTALL_ARGS ?=

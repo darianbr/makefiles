@@ -1,6 +1,6 @@
 #
 # Filename: modules/codeception/targets.mk
-# Last edited: 2026-11-02 18:27:23
+# Last edited: 2026-11-04 20:19:22
 # Description: Codeception module target recipes.
 #
 
@@ -11,21 +11,7 @@ endif
 ifndef MF_CODECEPTION_TARGETS_INCLUDED
 MF_CODECEPTION_TARGETS_INCLUDED := 1
 
-.PHONY: help echopath test coverage coverage-open clean install
-
-help::
-	@printf '%s\n' 'codeception targets: $(MF_MODULE_TARGETS_codeception)'
-
-echopath:: $(MF_CODECEPTION_COVERAGE_CACHE_PATH)
-	@echo "Codeception module Makefile"
-	@echo "MF_PROJECT_ROOT: $(MF_PROJECT_ROOT)"
-	@echo "MF_MAKEFILES_ROOT: $(MF_MAKEFILES_ROOT)"
-	@echo "MF_MODULES_ROOT: $(MF_MODULES_ROOT)"
-	@echo "MF_TOOLS_ROOT: $(MF_TOOLS_ROOT)"
-	@echo "CODECEPTION: $(CODECEPTION)"
-	@echo "CODECEPTION_CONFIG: $(MF_CODECEPTION_CONFIG_FILE)"
-	@coverage_dir=$$(cat "$(MF_CODECEPTION_COVERAGE_CACHE_PATH)"); echo "CODECEPTION_COVERAGE_DIR: $$coverage_dir"
-	@echo ""
+.PHONY: help test coverage coverage-open clean install
 
 install:: codeception-prerequisites
 	@echo "[codeception] Codeception prerequisites are ready"

@@ -1,6 +1,6 @@
 #
 # Filename: modules/codeception/prerequisites.mk
-# Last edited: 2026-11-02 18:25:58
+# Last edited: 2026-11-04 20:19:22
 # Description: Codeception executable, coverage, and setup prerequisite rules.
 #
 
@@ -14,7 +14,6 @@ MF_CODECEPTION_PREREQUISITES_INCLUDED := 1
 MF_CODECEPTION_PATH_DISCOVERY_SCRIPT := $(MF_MODULES_ROOT)codeception/discover-paths.sh
 MF_CODECEPTION_COVERAGE_CACHE_PATH := $(MF_CACHE_ROOT)codeception-coverage-dir
 MF_CODECEPTION_COVERAGE_INDEX_CACHE_PATH := $(MF_CACHE_ROOT)codeception-coverage-index
-MF_CODECEPTION_CONFIG_FILE := $(if $(wildcard $(MF_PROJECT_ROOT)codeception.yml),$(MF_PROJECT_ROOT)codeception.yml,(default fallback: _output/coverage))
 MF_CODECEPTION_CONFIG_DEP := $(wildcard $(MF_PROJECT_ROOT)codeception.yml)
 
 .PHONY: codeception-prerequisites codeception-ready

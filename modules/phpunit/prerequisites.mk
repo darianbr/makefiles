@@ -1,6 +1,6 @@
 #
 # Filename: modules/phpunit/prerequisites.mk
-# Last edited: 2026-11-02 18:25:58
+# Last edited: 2026-11-04 20:19:22
 # Description: PHPUnit executable, coverage, and setup prerequisite rules.
 #
 
@@ -14,7 +14,6 @@ MF_PHPUNIT_PREREQUISITES_INCLUDED := 1
 MF_PHPUNIT_PATH_DISCOVERY_SCRIPT := $(MF_MODULES_ROOT)phpunit/discover-paths.sh
 MF_PHPUNIT_COVERAGE_CACHE_PATH := $(MF_CACHE_ROOT)phpunit-coverage-dir
 MF_PHPUNIT_COVERAGE_INDEX_CACHE_PATH := $(MF_CACHE_ROOT)phpunit-coverage-index
-MF_PHPUNIT_CONFIG_FILE := $(if $(wildcard $(MF_PROJECT_ROOT)phpunit.xml),$(MF_PROJECT_ROOT)phpunit.xml,(default fallback: coverage))
 MF_PHPUNIT_CONFIG_DEP := $(wildcard $(MF_PROJECT_ROOT)phpunit.xml)
 
 .PHONY: phpunit-prerequisites

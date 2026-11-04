@@ -1,6 +1,6 @@
 #
 # Filename: modules/composer/targets.mk
-# Last edited: 2026-11-02 18:26:33
+# Last edited: 2026-11-04 20:19:22
 # Description: Composer module target recipes.
 #
 
@@ -12,17 +12,6 @@ ifndef MF_COMPOSER_TARGETS_INCLUDED
 MF_COMPOSER_TARGETS_INCLUDED := 1
 
 .PHONY: help install clean install-composer-binary
-
-help::
-	@printf '%s\n' 'composer targets: $(MF_MODULE_TARGETS_composer)'
-
-echopath::
-	@echo "Composer module Makefile"
-	@echo "MF_PROJECT_ROOT: $(MF_PROJECT_ROOT)"
-	@echo "MF_MAKEFILES_ROOT: $(MF_MAKEFILES_ROOT)"
-	@echo "MF_MODULES_ROOT: $(MF_MODULES_ROOT)"
-	@echo "MF_TOOLS_ROOT: $(MF_TOOLS_ROOT)"
-	@echo ""
 
 install:: composer-prerequisites $(MF_COMPOSER_TARGET)
 	@echo "[composer] install target invoked"

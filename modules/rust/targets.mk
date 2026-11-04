@@ -1,6 +1,6 @@
 #
 # Filename: modules/rust/targets.mk
-# Last edited: 2026-11-02 18:26:47
+# Last edited: 2026-11-04 20:19:22
 # Description: Rust module target recipes.
 #
 
@@ -11,20 +11,7 @@ endif
 ifndef MF_RUST_TARGETS_INCLUDED
 MF_RUST_TARGETS_INCLUDED := 1
 
-.PHONY: help echopath build test clippy fmt clean install
-
-help::
-	@printf '%s\n' 'rust targets: $(MF_MODULE_TARGETS_rust)'
-
-echopath::
-	@echo "Rust module Makefile"
-	@echo "MF_PROJECT_ROOT: $(MF_PROJECT_ROOT)"
-	@echo "MF_MAKEFILES_ROOT: $(MF_MAKEFILES_ROOT)"
-	@echo "MF_MODULES_ROOT: $(MF_MODULES_ROOT)"
-	@echo "MF_TOOLS_ROOT: $(MF_TOOLS_ROOT)"
-	@echo "CARGO: $(CARGO)"
-	@echo "CARGO_TARGET_DIR: $(CARGO_TARGET_DIR)"
-	@echo ""
+.PHONY: help build test clippy fmt clean install
 
 build:: rust-prerequisites
 	@cd "$(MF_PROJECT_ROOT)" && "$(CARGO)" build $(CARGO_BUILD_ARGS)

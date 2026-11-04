@@ -1,6 +1,6 @@
 #
 # Filename: modules/vitest/Makefile
-# Last edited: 2026-11-02 18:26:11
+# Last edited: 2026-11-04 20:19:22
 # Description: Vitest module controller that registers targets and includes recipes.
 #
 
@@ -11,7 +11,7 @@ $(error MF_TOOLS_ROOT is not set. Include modules/Makefile before using modules/
 endif
 
 MF_CURRENT_MODULE_ENTRY := $(lastword $(filter %/modules/vitest/Makefile,$(MAKEFILE_LIST)))
-$(eval $(call mf_register_module,$(MF_CURRENT_MODULE_ENTRY),echopath test coverage coverage-open clean install help))
+$(eval $(call mf_register_module,$(MF_CURRENT_MODULE_ENTRY),test coverage coverage-open clean install help))
 
 NPM ?= npm
 MF_VITEST_DEFAULT_BIN := $(MF_PROJECT_ROOT)node_modules/.bin/vitest

@@ -1,6 +1,6 @@
 #
 # Filename: modules/docker/targets.mk
-# Last edited: 2026-11-02 18:46:28
+# Last edited: 2026-11-04 20:19:22
 # Description: Docker module target recipes.
 #
 
@@ -11,18 +11,7 @@ endif
 ifndef MF_DOCKER_TARGETS_INCLUDED
 MF_DOCKER_TARGETS_INCLUDED := 1
 
-.PHONY: help echopath clean install
-
-help::
-	@printf '%s\n' 'docker targets: $(MF_MODULE_TARGETS_docker)'
-
-echopath::
-	@echo "Docker module Makefile"
-	@echo "MF_PROJECT_ROOT: $(MF_PROJECT_ROOT)"
-	@echo "MF_MAKEFILES_ROOT: $(MF_MAKEFILES_ROOT)"
-	@echo "MF_MODULES_ROOT: $(MF_MODULES_ROOT)"
-	@echo "MF_TOOLS_ROOT: $(MF_TOOLS_ROOT)"
-	@echo ""
+.PHONY: help clean install
 
 install:: docker-prerequisites
 	@echo "[docker] install target invoked (project services and images are project-specific)"

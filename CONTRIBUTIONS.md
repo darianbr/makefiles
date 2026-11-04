@@ -43,11 +43,22 @@ modules/
 Every consumer module must provide public `clean`, `install`, and `help`
 targets, including an explicit no-op with a useful message when an operation
 does not apply. Register these targets alongside any other public targets in
-the module entry Makefile. Use `clean::`, `install::`, and `help::` so the
-contributions from imported modules compose in aggregate mode. `clean` must
-remove only module-owned generated artifacts; `install` prepares the module's
-dependencies; `help` lists the registered public targets without side effects.
-Document detailed behavior and options in the README.
+the module entry Makefile. Use `clean::` and `install::` so contributions from
+imported modules compose in aggregate mode. `make help` is top-level help;
+`make <module> help` is generated from that module's registration. Help must
+have no prerequisites or side effects. `clean` must be safe, repeatable, remove
+only module-owned generated artifacts, and avoid discovery/cache prerequisites;
+`install` prepares the module's dependencies. Document detailed behavior and
+options in the README.
+
+A consumer's normal include/bootstrap pattern may fetch missing cached module
+files before Make executes help; the help target itself must not initiate that
+fetch or any other side effect.
+
+The shared registry rejects missing `clean`, `install`, or `help` targets,
+duplicate public registrations, and the retired `echopath` target. Keep every
+public target in the registration list exactly once and omit private
+prerequisites.
 
 Keep prerequisite configuration and private prerequisite/support rules (and
 their recipes) in `prerequisites.mk`; keep public module target declarations
@@ -93,7 +104,7 @@ targets, and omit private prerequisites. For example:
 
 ```make
 MF_CURRENT_MODULE_ENTRY := $(lastword $(filter %/modules/<module>/Makefile,$(MAKEFILE_LIST)))
-$(eval $(call mf_register_module,$(MF_CURRENT_MODULE_ENTRY),clean install help echopath test coverage coverage-open))
+$(eval $(call mf_register_module,$(MF_CURRENT_MODULE_ENTRY),clean install help test coverage coverage-open))
 ```
 
 Keep all public module target declarations and recipes in `targets.mk`; it may
@@ -102,9 +113,9 @@ Make's double-colon rule (`target::`) for targets that contribute to aggregate
 `make <target>` behavior alongside other modules. Scoped invocation selects
 only the named module's registered implementation.
 
-Preserve the PHPUnit-specific targets `echopath`, `test`, `coverage`,
-`coverage-open`, and `install-phpunit-binary`; register them alongside the
-required `clean`, `install`, and `help` targets. The module uses the consuming
+Preserve the PHPUnit-specific targets `test`, `coverage`, `coverage-open`, and
+`install-phpunit-binary`; register them alongside the required `clean`,
+`install`, and `help` targets. The module uses the consuming
 project's Composer-installed `vendor/bin/phpunit` by default; the standalone
 PHAR installer is opt-in and does not replace that executable. Set `BROWSER`
 when the default browser opener is not suitable; coverage output paths are

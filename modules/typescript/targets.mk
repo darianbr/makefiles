@@ -1,6 +1,6 @@
 #
 # Filename: modules/typescript/targets.mk
-# Last edited: 2026-11-02 18:26:53
+# Last edited: 2026-11-04 20:19:22
 # Description: TypeScript module target recipes.
 #
 
@@ -11,22 +11,7 @@ endif
 ifndef MF_TYPESCRIPT_TARGETS_INCLUDED
 MF_TYPESCRIPT_TARGETS_INCLUDED := 1
 
-.PHONY: help echopath build test clean install
-
-help::
-	@printf '%s\n' 'typescript targets: $(MF_MODULE_TARGETS_typescript)'
-
-echopath::
-	@echo "TypeScript module Makefile"
-	@echo "MF_PROJECT_ROOT: $(MF_PROJECT_ROOT)"
-	@echo "MF_MAKEFILES_ROOT: $(MF_MAKEFILES_ROOT)"
-	@echo "MF_MODULES_ROOT: $(MF_MODULES_ROOT)"
-	@echo "MF_TOOLS_ROOT: $(MF_TOOLS_ROOT)"
-	@echo "NPM: $(NPM)"
-	@echo "TSC: $(TSC)"
-	@echo "TSC_PROJECT: $(TSC_PROJECT)"
-	@echo "TSC_BUILD_OUT_DIR: $(TSC_BUILD_OUT_DIR)"
-	@echo ""
+.PHONY: help build test clean install
 
 build:: typescript-prerequisites
 	@cd "$(MF_PROJECT_ROOT)" && \
