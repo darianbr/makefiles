@@ -1,6 +1,6 @@
 #
 # Filename: modules/npm/targets.mk
-# Last edited: 2026-11-04 20:19:22
+# Last edited: 2026-11-04 12:15:45
 # Description: npm module target recipes.
 #
 
@@ -13,16 +13,8 @@ MF_NPM_TARGETS_INCLUDED := 1
 
 .PHONY: help install clean
 
-# Prefer npm ci for lockfile-driven installs; fall back to npm install when
-# only package.json is present so first-time projects can bootstrap.
-install:: npm-prerequisites
-	@if [ -f "$(MF_PROJECT_ROOT)package-lock.json" ] || [ -f "$(MF_PROJECT_ROOT)npm-shrinkwrap.json" ]; then \
-		echo "[npm] install target invoked (npm ci)"; \
-		cd "$(MF_PROJECT_ROOT)" && "$(NPM)" ci $(NPM_INSTALL_ARGS); \
-	else \
-		echo "[npm] no lockfile found; install target invoked (npm install)"; \
-		cd "$(MF_PROJECT_ROOT)" && "$(NPM)" install $(NPM_INSTALL_ARGS); \
-	fi
+install:: $(MF_NPM_INSTALL_STAMP)
+	@echo "[npm] install target up to date"
 
 # Remove conventional generated dependency/build directories only. Lockfiles
 # and source files are not part of this list and are left untouched.

@@ -1,6 +1,6 @@
 #
 # Filename: modules/npm/Makefile
-# Last edited: 2026-11-04 20:19:22
+# Last edited: 2026-11-04 12:15:45
 # Description: npm module controller that registers targets and includes recipes.
 #
 
@@ -19,4 +19,3 @@ NPM_CLEAN_DIRS ?= node_modules dist build coverage .next .nuxt .output
 
 -include .makefiles/modules/npm/prerequisites.mk
 -include .makefiles/modules/npm/targets.mk
-

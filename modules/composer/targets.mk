@@ -1,6 +1,6 @@
 #
 # Filename: modules/composer/targets.mk
-# Last edited: 2026-11-04 20:19:22
+# Last edited: 2026-11-04 12:15:45
 # Description: Composer module target recipes.
 #
 
@@ -13,9 +13,8 @@ MF_COMPOSER_TARGETS_INCLUDED := 1
 
 .PHONY: help install clean install-composer-binary
 
-install:: composer-prerequisites $(MF_COMPOSER_TARGET)
-	@echo "[composer] install target invoked"
-	"$(PHP)" "$(COMPOSER)" install --working-dir="$(MF_PROJECT_ROOT)"
+install:: $(MF_COMPOSER_INSTALL_STAMP)
+	@echo "[composer] install target up to date"
 
 # Clean vendor directory if it exists.
 clean::
