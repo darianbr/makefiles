@@ -3,7 +3,7 @@
 This demonstrates module wiring only.
 
 ```console
-make docker echopath
+make docker help
 make docker clean
 ```
 

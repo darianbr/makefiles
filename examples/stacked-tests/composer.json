@@ -1,0 +1,17 @@
+{
+  "name": "darianbr/makefiles-example-stacked-tests",
+  "type": "project",
+  "require": {
+    "php": "^8.4.1"
+  },
+  "require-dev": {
+    "codeception/codeception": "^5.3",
+    "codeception/module-asserts": "^3.3",
+    "phpunit/phpunit": "^13.4"
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Tests\\": "./"
+    }
+  }
+}
