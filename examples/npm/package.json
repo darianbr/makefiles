@@ -1,0 +1,9 @@
+{
+  "name": "darianbr-makefiles-example-npm",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Minimal npm example for makefiles module",
+  "dependencies": {
+    "left-pad": "^1.3.0"
+  }
+}

@@ -1,0 +1,18 @@
+fn main() {
+    println!("Hello from the makefiles rust example!");
+}
+
+#[allow(dead_code)]
+fn add(a: i32, b: i32) -> i32 {
+    a + b
+}
+
+#[cfg(test)]
+mod tests {
+    use super::add;
+
+    #[test]
+    fn adds_two_numbers() {
+        assert_eq!(add(2, 3), 5);
+    }
+}

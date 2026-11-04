@@ -1,18 +1,22 @@
 #
 # Filename: modules/docker/targets.mk
-# Last edited: 2026-10-20 18:10:00
+# Last edited: 2026-11-04 20:19:22
 # Description: Docker module target recipes.
 #
 
-.PHONY: echopath clean
+ifndef MF_TOOLS_ROOT
+$(error MF_TOOLS_ROOT is not set. Include modules/Makefile before using modules/docker/targets.mk.)
+endif
 
-echopath::
-	@echo "Docker module Makefile"
-	@echo "MF_PROJECT_ROOT: $(MF_PROJECT_ROOT)"
-	@echo "MF_MAKEFILES_ROOT: $(MF_MAKEFILES_ROOT)"
-	@echo "MF_MODULES_ROOT: $(MF_MODULES_ROOT)"
-	@echo "MF_TOOLS_ROOT: $(MF_TOOLS_ROOT)"
-	@echo ""
+ifndef MF_DOCKER_TARGETS_INCLUDED
+MF_DOCKER_TARGETS_INCLUDED := 1
+
+.PHONY: help clean install
+
+install:: docker-prerequisites
+	@echo "[docker] install target invoked (project services and images are project-specific)"
 
 clean::
-	@echo "[docker] clean target invoked"
+	@echo "[docker] clean is a no-op (project containers and images are project-specific)"
+
+endif

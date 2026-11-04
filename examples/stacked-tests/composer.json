@@ -1,6 +1,5 @@
 {
-  "name": "darianbr/makefiles-tests",
-  "description": "Smoke-test project for the makefiles modules",
+  "name": "darianbr/makefiles-example-stacked-tests",
   "type": "project",
   "require": {
     "php": "^8.4.1"
@@ -14,8 +13,5 @@
     "psr-4": {
       "Tests\\": "./"
     }
-  },
-  "config": {
-    "sort-packages": true
   }
 }

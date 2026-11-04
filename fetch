@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Hosted at https://darianbr.github.io/makefiles/fetch
 #
-# Downloads a module (plus the shared root Makefile) from the published
+# Downloads a module (plus shared root/core files) from the published
 # makefiles site into the local .makefiles/ cache.
 #
 # Usage: fetch <module> [--force]
@@ -10,7 +10,8 @@
 #
 # Which files belong to a module is listed in modules/manifest.txt (one path
 # per line, relative to modules/). This script always fetches the root
-# Makefile, then every file the manifest assigns to the requested module.
+# Makefile, shared core files, then every file the manifest assigns to the
+# requested module.
 
 set -euo pipefail
 
@@ -37,11 +38,13 @@ fi
 mkdir -p "$DEST"
 curl -sf "$BASE_URL/manifest.txt" -o "$MANIFEST"
 
-# 2. Collect the files to download: the root Makefile + this module's files.
+# 2. Collect files to download: root Makefile + shared core files + this
+#    module's files.
 files=""
 while IFS= read -r line; do
   case "$line" in
     Makefile)    files="$files $line" ;;
+    core/*)      files="$files $line" ;;
     "$MODULE"/*) files="$files $line" ;;
   esac
 done < "$MANIFEST"

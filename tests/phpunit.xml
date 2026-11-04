@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<phpunit bootstrap="vendor/autoload.php" cacheDirectory=".phpunit.cache" colors="true">
-    <testsuites>
-        <testsuite name="PHPUnit smoke tests">
-            <directory>PHPUnit</directory>
-        </testsuite>
-    </testsuites>
-</phpunit>

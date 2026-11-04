@@ -11,6 +11,12 @@ else
 .PHONY: clean
 clean::
 	@if [ -d "$(MF_MAKEFILES_ROOT)" ]; then \
+		helper_source="$(MF_MODULES_ROOT)core/remove-with-guardrails.sh"; \
+		helper_fallback="/tmp/mf-remove-with-guardrails.sh"; \
+		if [ -f "$$helper_source" ]; then \
+			cp "$$helper_source" "$$helper_fallback"; \
+			chmod 700 "$$helper_fallback"; \
+		fi; \
 		echo "[base] clean makefiles folder"; \
 		rm -rf "$(MF_MAKEFILES_ROOT)"; \
 	else \
