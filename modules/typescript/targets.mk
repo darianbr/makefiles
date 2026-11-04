@@ -1,49 +1,17 @@
 #
 # Filename: modules/typescript/targets.mk
-# Last edited: 2026-10-20 22:40:56
+# Last edited: 2026-11-04 20:19:22
 # Description: TypeScript module target recipes.
 #
 
-.PHONY: echopath build test clean typescript-prerequisites
+ifndef MF_TOOLS_ROOT
+$(error MF_TOOLS_ROOT is not set. Include modules/Makefile before using modules/typescript/targets.mk.)
+endif
 
-typescript-prerequisites:
-	@if ! (cd "$(MF_PROJECT_ROOT)" && command -v "$(NPM)" >/dev/null 2>&1); then \
-		echo "[typescript] npm executable not found: $(NPM)" >&2; \
-		exit 1; \
-	elif [ ! -f "$(MF_PROJECT_ROOT)package.json" ]; then \
-		echo "[typescript] package.json not found in $(MF_PROJECT_ROOT)" >&2; \
-		exit 1; \
-	elif [ ! -f "$(MF_PROJECT_ROOT)$(TSC_PROJECT)" ]; then \
-		echo "[typescript] project file not found: $(MF_PROJECT_ROOT)$(TSC_PROJECT)" >&2; \
-		exit 1; \
-	elif [ -f "$(TSC)" ] || (cd "$(MF_PROJECT_ROOT)" && command -v tsc >/dev/null 2>&1); then \
-		:; \
-	else \
-		echo "[typescript] TypeScript executable not found; attempting npm install."; \
-		if [ -f "$(MF_MODULES_ROOT)npm/Makefile" ]; then \
-			$(MAKE) --no-print-directory npm install || exit $$?; \
-		else \
-			$(MAKE) --no-print-directory install || exit $$?; \
-		fi; \
-		if [ -f "$(TSC)" ] || (cd "$(MF_PROJECT_ROOT)" && command -v tsc >/dev/null 2>&1); then \
-			:; \
-		else \
-			echo "[typescript] TypeScript executable is still missing: $(TSC)" >&2; \
-			exit 1; \
-		fi; \
-	fi
+ifndef MF_TYPESCRIPT_TARGETS_INCLUDED
+MF_TYPESCRIPT_TARGETS_INCLUDED := 1
 
-echopath::
-	@echo "TypeScript module Makefile"
-	@echo "MF_PROJECT_ROOT: $(MF_PROJECT_ROOT)"
-	@echo "MF_MAKEFILES_ROOT: $(MF_MAKEFILES_ROOT)"
-	@echo "MF_MODULES_ROOT: $(MF_MODULES_ROOT)"
-	@echo "MF_TOOLS_ROOT: $(MF_TOOLS_ROOT)"
-	@echo "NPM: $(NPM)"
-	@echo "TSC: $(TSC)"
-	@echo "TSC_PROJECT: $(TSC_PROJECT)"
-	@echo "TSC_BUILD_OUT_DIR: $(TSC_BUILD_OUT_DIR)"
-	@echo ""
+.PHONY: help build test clean install
 
 build:: typescript-prerequisites
 	@cd "$(MF_PROJECT_ROOT)" && \
@@ -60,6 +28,9 @@ test:: typescript-prerequisites
 	else \
 		"$(NPM)" exec -- tsc $(TSC_TEST_ARGS); \
 	fi
+
+install:: typescript-prerequisites
+	@echo "[typescript] TypeScript prerequisites are ready"
 
 clean::
 	@build_out_dir="$(TSC_BUILD_OUT_DIR)"; \
@@ -79,3 +50,5 @@ clean::
 	esac; \
 	sh "$$remove_script" "$$project_root" typescript dir "$$build_out_dir"; \
 	sh "$$remove_script" "$$project_root" typescript file "$(MF_PROJECT_ROOT).tsbuildinfo"
+
+endif

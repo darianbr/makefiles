@@ -1,20 +1,19 @@
 #
 # Filename: modules/composer/targets.mk
-# Last edited: 2026-10-20 18:10:00
+# Last edited: 2026-11-04 20:19:22
 # Description: Composer module target recipes.
 #
 
-.PHONY: echopath install clean install-composer-binary
+ifndef MF_TOOLS_ROOT
+$(error MF_TOOLS_ROOT is not set. Include modules/Makefile before using modules/composer/targets.mk.)
+endif
 
-echopath::
-	@echo "Composer module Makefile"
-	@echo "MF_PROJECT_ROOT: $(MF_PROJECT_ROOT)"
-	@echo "MF_MAKEFILES_ROOT: $(MF_MAKEFILES_ROOT)"
-	@echo "MF_MODULES_ROOT: $(MF_MODULES_ROOT)"
-	@echo "MF_TOOLS_ROOT: $(MF_TOOLS_ROOT)"
-	@echo ""
+ifndef MF_COMPOSER_TARGETS_INCLUDED
+MF_COMPOSER_TARGETS_INCLUDED := 1
 
-install:: $(MF_COMPOSER_TARGET)
+.PHONY: help install clean install-composer-binary
+
+install:: composer-prerequisites $(MF_COMPOSER_TARGET)
 	@echo "[composer] install target invoked"
 	"$(PHP)" "$(COMPOSER)" install --working-dir="$(MF_PROJECT_ROOT)"
 
@@ -27,7 +26,7 @@ clean::
 		echo "[composer] clean target skipped (requires vendor/ and composer.lock)"; \
 	fi
 
-# Install composer if it doesn't exist.
+# Install Composer if it doesn't exist.
 $(MF_COMPOSER_TARGET):
 	@if [ -f "$(COMPOSER)" ]; then \
 		echo "[composer] composer binary already present"; \
@@ -35,3 +34,21 @@ $(MF_COMPOSER_TARGET):
 		$(MAKE) --no-print-directory install-composer-binary && \
 		echo "[composer] composer binary is installed"; \
 	fi
+
+install-composer-binary: composer-prerequisites
+	@set -eu; \
+	mkdir -p "$(MF_TOOLS_ROOT)"; \
+	installer="$(MF_TOOLS_ROOT)composer-setup.php"; \
+	signature="$(MF_TOOLS_ROOT)composer-setup.sig"; \
+	trap 'rm -f "$$installer" "$$signature"' EXIT; \
+	curl -fsSL https://getcomposer.org/installer -o "$$installer"; \
+	curl -fsSL https://composer.github.io/installer.sig -o "$$signature"; \
+	expected_sig=$$(cat "$$signature"); \
+	actual_sig=$$("$(PHP)" -r 'echo hash_file("sha384", $$argv[1]);' "$$installer"); \
+	if [ "$$expected_sig" != "$$actual_sig" ]; then \
+		echo "ERROR: Invalid installer signature" >&2; \
+		exit 1; \
+	fi; \
+	"$(PHP)" "$$installer" --install-dir="$(MF_TOOLS_ROOT)" --filename=composer.phar
+
+endif

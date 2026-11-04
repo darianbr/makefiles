@@ -5,7 +5,7 @@
 This repository hosts the canonical makefiles published at `https://darianbr.github.io/makefiles`. They are designed to be human-readable for contributors and machine-friendly for tools like Copilot.
 
 ## Overview
-- **Modular**: each module under `modules/` exposes its own `Makefile` plus optional helper `.mk` fragments.
+- **Modular**: the required consumer-module layout is an entry `Makefile`, a `prerequisites.mk`, and a `targets.mk`, plus optional module-local helpers.
 - **Bootstrap-friendly**: the `fetch` script and a local `make` pattern rule automatically populate `.makefiles/` with the modules you need, on first use.
 - **Config-aware**: modules can derive runtime paths from project config files (for example `codeception.yml` and `phpunit.xml`) and cache resolved values under `.makefiles/cache/`.
 - **Consistent**: every module file carries a `Last edited` header; module entry points load the shared root logic and helper fragments use the same guard convention, so targets behave the same way across projects.
@@ -97,14 +97,13 @@ $ make composer build
 
 The `npm` and `build` examples assume the consumer has imported an npm module
 and that both modules expose a `build` target. The currently published modules
-in this repository are `codeception`, `composer`, `docker`, `npm`, `phpunit`, `rust`, `typescript`, and `vitest`; composer currently exposes
-`install`, `clean`, `echopath`, and `install-composer-binary`, but not `build`.
-Consequently, `make composer build` in a consumer using the current published
-composer module fails validation before running any recipe. For the currently
-published targets, scoped commands include `make composer install`,
-`make npm install`, and `make docker clean`. The npm install target runs
-`npm ci` when `package-lock.json` or `npm-shrinkwrap.json` is present, and
-falls back to `npm install` when only `package.json` is present.
+in this repository are `codeception`, `composer`, `docker`, `npm`, `phpunit`,
+`rust`, `typescript`, and `vitest`; Composer does not expose `build`.
+Consequently, `make composer build` in a consumer using the published Composer
+module fails validation before running any recipe. Scoped examples include
+`make composer install`, `make npm install`, and `make docker clean`. The npm
+install target runs `npm ci` when `package-lock.json` or `npm-shrinkwrap.json`
+is present, and falls back to `npm install` when only `package.json` is present.
 
 Scoped validation errors are written to stderr and return status 2. An unknown
 module identifies the requested name and lists imported modules:
@@ -118,13 +117,25 @@ An unavailable target identifies the selected module and lists its available
 targets:
 
 ```text
-makefiles: target 'build' is not available in module 'composer'; available targets: clean echopath install install-composer-binary
+makefiles: target 'build' is not available in module 'composer'; available targets: clean help install install-composer-binary
 ```
 
 Validation happens before module recipes run. The exact two-goal form is
 reserved for module dispatch, so `make name target` is not treated as two
 independent aggregate goals. Set `MF_LEGACY_GOALS=1` only when a consumer needs
 the pre-feature two-goal GNU Make interpretation.
+
+### Help
+
+Run `make help` for top-level usage, imported modules, and aggregate target
+names. Run `make <module> help` to list one module's registered public targets;
+for example, `make composer help`. Help is informational only: it does not run
+module prerequisites, discover paths, or modify generated files.
+If the consumer's `.makefiles/` cache is absent, its normal include bootstrap
+may fetch module files before Make executes the help target.
+The former `echopath` path diagnostic is retired; module help lists registered
+targets instead. Consumers with cached module files should refresh them with
+`fetch <module> --force` to receive the new help contract.
 
 ### Module names and public target registration
 
@@ -133,11 +144,20 @@ Every public module-specific target is available in the module's namespace as
 (for example, `make phpunit test` or `make composer install`), and `<target>`
 is the ordinary Make target name. A module is eligible only when the consumer
 explicitly includes its entry Makefile; a cached but unreferenced module is
-not selectable. Keep each module's public target registration in its entry
-Makefile, including public targets defined in helper `.mk` files. The
+not selectable. Register the standard `clean`, `install`, and `help` targets,
+plus all module-specific public targets, in the entry Makefile. Keep prerequisite
+configuration and private prerequisite/support rules in `prerequisites.mk`, and
+public target rules and recipes in `targets.mk`; optional helper `.mk` files
+must not define targets. The
 contributor workflow and required registration pattern are in
 [CONTRIBUTIONS.md](CONTRIBUTIONS.md); this README section is the canonical
 reference for invocation and compatibility behavior.
+
+Every module must register `clean`, `install`, and `help` exactly once along
+with its other public targets. Registration rejects missing required targets,
+duplicate names, and the retired `echopath` target. `help` must not have
+prerequisites or side effects; `clean` must be safe, repeatable, and independent
+of discovery/cache prerequisites.
 
 Keep the one-argument interface intact: `make <target>` continues to aggregate
 the target across imported modules in GNU Make import order, and shared root
@@ -153,40 +173,46 @@ before the selected module target.
 
 ## Module Targets
 
+Every consumer module is required to expose `clean`, `install`, and `help`,
+using an explicit no-op with a useful message when a target has no work. The
+shared registry rejects missing or duplicate registrations and the retired
+`echopath` target. See [CONTRIBUTIONS.md](CONTRIBUTIONS.md) for the required
+file layout and target safety rules.
+
 | Module | Target | Behavior |
 |--------|--------|----------|
 | (root) | `clean::` | Removes `.makefiles/` (including `.makefiles/cache/`); skips when absent. |
-| codeception | `echopath::` | Diagnostic: prints the module name, resolved `MF_*` paths, Codeception executable, and coverage directory. |
+| (root) | `help` | Shows top-level usage, imported modules, and aggregate target names. |
+| all modules | `help` | Lists registered public targets without changing project state. |
+| codeception | `install::` | Checks PHP and Codeception; attempts the Composer install if the Codeception executable is missing. |
 | codeception | `test::` | Runs the Composer-installed Codeception executable. |
 | codeception | `coverage::` | Runs Codeception with HTML coverage output in the path resolved from `codeception.yml` (`paths.output`) plus `/coverage` (fallback: `_output/coverage`). |
 | codeception | `coverage-open::` | Regenerates the HTML coverage report and opens it with `BROWSER`, `xdg-open`, or `open`. |
 | codeception | `clean::` | Removes Codeception suite artefacts: coverage output, support output, and main output directory (resolved from `codeception.yml`; fallbacks `_output/coverage`, `_support`, `_output`). |
 | composer | `install::` | Runs `composer install` in the project root. First provisions `composer.phar` into `.makefiles/tools/` (via `install-composer-binary`). |
 | composer | `clean::` | Removes `vendor/` — only when both `vendor/` and `composer.lock` exist; otherwise prints a skip message. |
-| composer | `echopath::` | Diagnostic: prints the module name and the resolved `MF_*` paths. |
 | composer | `install-composer-binary` | Downloads the Composer installer, verifies its SHA-384 signature, and installs `composer.phar` into `.makefiles/tools/`. |
-| docker | `echopath::` | Diagnostic: prints the module name and the resolved `MF_*` paths. |
-| docker | `clean::` | Stub: prints a line only. The docker module is a placeholder with no real targets yet. |
-| npm | `echopath::` | Diagnostic: prints the module name, resolved `MF_*` paths, and npm executable. |
+| docker | `install::` | Checks for the Docker CLI and reports that project services and images remain project-specific. |
+| docker | `clean::` | No-op: project containers and images are project-specific and are not removed. |
 | npm | `install::` | Runs `npm ci` in the project root when `package-lock.json` or `npm-shrinkwrap.json` exists; otherwise runs `npm install` when only `package.json` is present. Set `NPM` or `NPM_INSTALL_ARGS` to customize the command. |
 | npm | `clean::` | Removes generated directories listed in `NPM_CLEAN_DIRS` (defaults: `node_modules`, `dist`, `build`, `coverage`, `.next`, `.nuxt`, `.output`); leaves source files and lockfiles untouched. |
-| phpunit | `echopath::` | Diagnostic: prints the module name, resolved `MF_*` paths, PHPUnit executable, and coverage directory. |
+| phpunit | `install::` | Checks PHP and PHPUnit; attempts the Composer install if the PHPUnit executable is missing. |
 | phpunit | `install-phpunit-binary` | Downloads the optional standalone PHPUnit PHAR into `.makefiles/tools/` (or `PHPUNIT_PHAR`). |
 | phpunit | `test::` | Runs the Composer-installed PHPUnit executable against the project test suite. |
 | phpunit | `coverage::` | Runs PHPUnit with `--coverage-html` and writes the report to the path resolved from `phpunit.xml` HTML report config (fallback: `coverage/`). |
 | phpunit | `coverage-open::` | Regenerates the HTML coverage report and opens `coverage/index.html` with `BROWSER`, `xdg-open`, or `open`. |
 | phpunit | `clean::` | Removes PHPUnit suite artefacts: HTML coverage output (resolved from `phpunit.xml` or fallback `coverage/`), `.phpunit.cache`, and `.phpunit.result.cache`. |
-| rust | `echopath::` | Diagnostic: prints the module name, resolved `MF_*` paths, cargo executable, and target directory. |
+| rust | `install::` | Runs `cargo fetch` in the project root. |
 | rust | `build::` | Runs `cargo build` in the project root. Set `CARGO_BUILD_ARGS` to pass extra flags (for example `--release`). |
 | rust | `test::` | Runs `cargo test` in the project root. Set `CARGO_TEST_ARGS` to pass extra flags. |
 | rust | `clippy::` | Runs `cargo clippy` in the project root. Set `CARGO_CLIPPY_ARGS` to pass extra flags (for example `-- -D warnings`). |
 | rust | `fmt::` | Runs `cargo fmt` in the project root. Set `CARGO_FMT_ARGS` to pass extra flags (for example `-- --check`). |
 | rust | `clean::` | Removes the cargo target directory through shared clean guardrails. The effective directory is resolved from `cargo metadata` (honoring `CARGO_TARGET_DIR` and `.cargo/config.toml`) with a fallback to `target`. |
-| typescript | `echopath::` | Diagnostic: prints the module name, resolved `MF_*` paths, npm executable, and TypeScript configuration values. |
+| typescript | `install::` | Checks npm, `package.json`, and the TypeScript project; attempts npm install if TypeScript is missing. |
 | typescript | `build::` | Runs TypeScript compilation using the configured project file (default `tsconfig.json`) and output directory (default `build/typescript`). |
 | typescript | `test::` | Runs TypeScript type-check mode (`--noEmit`) using the configured project file. |
 | typescript | `clean::` | Removes TypeScript build artefacts (`build/typescript` and `.tsbuildinfo`) through shared clean guardrails. |
-| vitest | `echopath::` | Diagnostic: prints the module name, resolved `MF_*` paths, Vitest executable, and configured coverage directory. |
+| vitest | `install::` | Checks npm and `package.json`; attempts npm install if Vitest is missing. |
 | vitest | `test::` | Runs Vitest in run mode (`vitest run`). |
 | vitest | `coverage::` | Runs Vitest with HTML coverage output (default directory `coverage/vitest`). |
 | vitest | `coverage-open::` | Regenerates the HTML coverage report and opens it with `BROWSER`, `xdg-open`, or `open`. |
@@ -195,11 +221,18 @@ before the selected module target.
 Aggregate-contributing targets use double-colon (`::`) so multiple modules can contribute to the same target name. `make clean` runs the shared root cleanup and the `clean::` recipes from every imported module that defines them, in import order; for the Composer + Docker example above, that is root + composer + docker. The Codeception, PHPUnit, and Composer clean recipes are independent and do not invoke one another.
 
 ## Repository Layout
-- `modules/` – source makefiles for every module.
-  - `modules/Makefile` – root: shared `MF_*` path variables and the base `clean::` target.
-  - `modules/<module>/Makefile` – module entry targets (`install::`, `clean::`, ...).
-	- `modules/<module>/*.mk` – optional helper fragments (header + guard only, no root include).
-	- `modules/<module>/*.sh` – optional module-owned discovery helpers for config-derived paths.
+
+The module paths below describe the required convention, not a compliance
+inventory of the existing modules.
+
+- `modules/` – canonical source makefiles.
+  - `modules/Makefile` – root: shared `MF_*` path variables, dispatch, help, and base `clean::` target.
+  - `modules/<module>/Makefile` – module entry point, includes the root and registers public targets.
+  - `modules/<module>/prerequisites.mk` – required prerequisite configuration and private support rules.
+  - `modules/<module>/targets.mk` – required public module target rules and recipes.
+  - `modules/<module>/*.mk` – optional non-target helper fragments (header + guard only, no root include).
+  - `modules/<module>/*.sh` – optional module-owned discovery helpers for config-derived paths.
+  - `modules/core/` – shared infrastructure; it is not a consumer module.
   - `modules/manifest.txt` – lists every published file (one path per line); `fetch` uses it to know what to download.
 - `.makefiles/` – generated runtime folder inside consuming projects. Holds two subtrees: `.makefiles/modules/` (the fetched makefiles, mirroring `modules/`) and `.makefiles/tools/` (provisioned binaries, e.g. `composer.phar`).
 - `.makefiles/cache/` – generated project cache folder for resolved runtime paths used by module targets.

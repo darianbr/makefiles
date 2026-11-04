@@ -1,6 +1,6 @@
 #
 # Filename: modules/composer/Makefile
-# Last edited: 2026-10-20 18:10:00
+# Last edited: 2026-11-04 20:19:22
 # Description: Composer module controller that registers targets and includes recipes.
 #
 
@@ -11,7 +11,7 @@ $(error MF_TOOLS_ROOT is not set. Include modules/Makefile before using modules/
 endif
 
 MF_CURRENT_MODULE_ENTRY := $(lastword $(filter %/modules/composer/Makefile,$(MAKEFILE_LIST)))
-$(eval $(call mf_register_module,$(MF_CURRENT_MODULE_ENTRY),echopath install clean install-composer-binary))
+$(eval $(call mf_register_module,$(MF_CURRENT_MODULE_ENTRY),install clean install-composer-binary help))
 
 PHP ?= php
 COMPOSER := $(MF_TOOLS_ROOT)composer.phar
@@ -19,5 +19,5 @@ MF_COMPOSER_EMPTY :=
 MF_COMPOSER_SPACE := $(MF_COMPOSER_EMPTY) $(MF_COMPOSER_EMPTY)
 MF_COMPOSER_TARGET := $(subst $(MF_COMPOSER_SPACE),\$(MF_COMPOSER_SPACE),$(COMPOSER))
 
--include .makefiles/modules/composer/install-binary.mk
+-include .makefiles/modules/composer/prerequisites.mk
 -include .makefiles/modules/composer/targets.mk

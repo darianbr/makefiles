@@ -28,6 +28,9 @@ Scoped targets let you run one runner at a time:
 - `make phpunit test`
 - `make codeception test`
 
+Run `make help` to see aggregate targets and imported modules, or use scoped
+help such as `make phpunit help` to list one module's public targets.
+
 ## Quick start
 
 ```bash

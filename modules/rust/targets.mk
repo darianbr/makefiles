@@ -1,6 +1,6 @@
 #
 # Filename: modules/rust/targets.mk
-# Last edited: 2026-10-31 17:50:26
+# Last edited: 2026-11-04 20:19:22
 # Description: Rust module target recipes.
 #
 
@@ -8,26 +8,10 @@ ifndef MF_TOOLS_ROOT
 $(error MF_TOOLS_ROOT is not set. Include modules/Makefile before using modules/rust/targets.mk.)
 endif
 
-.PHONY: echopath build test clippy fmt clean rust-prerequisites
+ifndef MF_RUST_TARGETS_INCLUDED
+MF_RUST_TARGETS_INCLUDED := 1
 
-rust-prerequisites:
-	@if ! (cd "$(MF_PROJECT_ROOT)" && command -v "$(CARGO)" >/dev/null 2>&1); then \
-		echo "[rust] cargo executable not found: $(CARGO)" >&2; \
-		exit 1; \
-	elif [ ! -f "$(MF_PROJECT_ROOT)Cargo.toml" ]; then \
-		echo "[rust] Cargo.toml not found in $(MF_PROJECT_ROOT)" >&2; \
-		exit 1; \
-	fi
-
-echopath::
-	@echo "Rust module Makefile"
-	@echo "MF_PROJECT_ROOT: $(MF_PROJECT_ROOT)"
-	@echo "MF_MAKEFILES_ROOT: $(MF_MAKEFILES_ROOT)"
-	@echo "MF_MODULES_ROOT: $(MF_MODULES_ROOT)"
-	@echo "MF_TOOLS_ROOT: $(MF_TOOLS_ROOT)"
-	@echo "CARGO: $(CARGO)"
-	@echo "CARGO_TARGET_DIR: $(CARGO_TARGET_DIR)"
-	@echo ""
+.PHONY: help build test clippy fmt clean install
 
 build:: rust-prerequisites
 	@cd "$(MF_PROJECT_ROOT)" && "$(CARGO)" build $(CARGO_BUILD_ARGS)
@@ -40,6 +24,9 @@ clippy:: rust-prerequisites
 
 fmt:: rust-prerequisites
 	@cd "$(MF_PROJECT_ROOT)" && "$(CARGO)" fmt $(CARGO_FMT_ARGS)
+
+install:: rust-prerequisites
+	@cd "$(MF_PROJECT_ROOT)" && "$(CARGO)" fetch
 
 clean::
 	@project_root="$(MF_PROJECT_ROOT)"; \
@@ -64,3 +51,5 @@ clean::
 		*) target_dir="$$project_root/$$target_dir" ;; \
 	esac; \
 	sh "$$remove_script" "$$project_root" rust dir "$$target_dir"
+
+endif
