@@ -11,6 +11,7 @@ This folder contains standalone MVP examples for each module. Pick one folder, r
 - [rust](rust): Rust build, test, clippy, fmt + clean
 - [typescript](typescript): TypeScript build + typecheck
 - [vitest](vitest): Vitest test + coverage
+- [wtree](wtree): local HTTPS worktree route and project-owned dev server
 - [stacked-tests](stacked-tests): Vitest + PHPUnit + Codeception in one project
 - [docker](docker): Docker placeholder module wiring
 

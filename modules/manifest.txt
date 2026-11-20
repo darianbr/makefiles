@@ -34,3 +34,6 @@ typescript/targets.mk
 vitest/Makefile
 vitest/prerequisites.mk
 vitest/targets.mk
+wtree/Makefile
+wtree/prerequisites.mk
+wtree/targets.mk
