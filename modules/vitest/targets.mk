@@ -1,6 +1,6 @@
 #
 # Filename: modules/vitest/targets.mk
-# Last edited: 2026-11-04 20:19:22
+# Last edited: 2026-11-06 21:34:40
 # Description: Vitest module target recipes.
 #
 
@@ -34,24 +34,8 @@ coverage:: vitest-prerequisites
 		"$(NPM)" exec -- vitest run --coverage --coverage.reporter=html --coverage.reportsDirectory "$$coverage_dir" $(VITEST_ARGS); \
 	fi
 coverage-open:: $(MF_VITEST_COVERAGE_INDEX_CACHE_PATH)
-	@if [ -n "$(BROWSER)" ]; then \
-		if ! (cd "$(MF_PROJECT_ROOT)" && command -v "$(BROWSER)" >/dev/null 2>&1); then \
-			echo "[vitest] Browser opener not found: $(BROWSER)" >&2; \
-			exit 1; \
-		fi; \
-		coverage_index=$$(cat "$(MF_VITEST_COVERAGE_INDEX_CACHE_PATH)"); \
-		cd "$(MF_PROJECT_ROOT)" && "$(BROWSER)" "$$coverage_index"; \
-	elif command -v xdg-open >/dev/null 2>&1; then \
-		coverage_index=$$(cat "$(MF_VITEST_COVERAGE_INDEX_CACHE_PATH)"); \
-		cd "$(MF_PROJECT_ROOT)" && xdg-open "$$coverage_index"; \
-	elif command -v open >/dev/null 2>&1; then \
-		coverage_index=$$(cat "$(MF_VITEST_COVERAGE_INDEX_CACHE_PATH)"); \
-		cd "$(MF_PROJECT_ROOT)" && open "$$coverage_index"; \
-	else \
-		coverage_index=$$(cat "$(MF_VITEST_COVERAGE_INDEX_CACHE_PATH)"); \
-		echo "[vitest] No browser opener found; open $$coverage_index manually." >&2; \
-		exit 1; \
-	fi
+	@coverage_index=$$(cat "$(MF_VITEST_COVERAGE_INDEX_CACHE_PATH)") && \
+	sh "$(MF_MODULES_ROOT)core/open-browser.sh" "$(MF_PROJECT_ROOT)" vitest "$$coverage_index" "$(BROWSER)"
 
 install:: vitest-prerequisites
 	@echo "[vitest] Vitest prerequisites are ready"

@@ -1,6 +1,6 @@
 #
 # Filename: modules/codeception/targets.mk
-# Last edited: 2026-11-04 20:19:22
+# Last edited: 2026-11-06 21:34:40
 # Description: Codeception module target recipes.
 #
 
@@ -51,24 +51,8 @@ coverage:: codeception-ready $(MF_CODECEPTION_COVERAGE_CACHE_PATH)
 	fi
 
 coverage-open:: $(MF_CODECEPTION_COVERAGE_INDEX_CACHE_PATH)
-	@if [ -n "$(BROWSER)" ]; then \
-		if ! (cd "$(MF_PROJECT_ROOT)" && command -v "$(BROWSER)" >/dev/null 2>&1); then \
-			echo "[codeception] Browser opener not found: $(BROWSER)" >&2; \
-			exit 1; \
-		fi; \
-		coverage_index=$$(cat "$(MF_CODECEPTION_COVERAGE_INDEX_CACHE_PATH)"); \
-		cd "$(MF_PROJECT_ROOT)" && "$(BROWSER)" "$$coverage_index"; \
-	elif command -v xdg-open >/dev/null 2>&1; then \
-		coverage_index=$$(cat "$(MF_CODECEPTION_COVERAGE_INDEX_CACHE_PATH)"); \
-		cd "$(MF_PROJECT_ROOT)" && xdg-open "$$coverage_index"; \
-	elif command -v open >/dev/null 2>&1; then \
-		coverage_index=$$(cat "$(MF_CODECEPTION_COVERAGE_INDEX_CACHE_PATH)"); \
-		cd "$(MF_PROJECT_ROOT)" && open "$$coverage_index"; \
-	else \
-		coverage_index=$$(cat "$(MF_CODECEPTION_COVERAGE_INDEX_CACHE_PATH)"); \
-		echo "[codeception] No browser opener found; open $$coverage_index manually." >&2; \
-		exit 1; \
-	fi
+	@coverage_index=$$(cat "$(MF_CODECEPTION_COVERAGE_INDEX_CACHE_PATH)") && \
+	sh "$(MF_MODULES_ROOT)core/open-browser.sh" "$(MF_PROJECT_ROOT)" codeception "$$coverage_index" "$(BROWSER)"
 
 # Remove suite-generated Codeception directories. This clean path is intentionally
 # independent from discovery-cache prerequisites so base clean can delete

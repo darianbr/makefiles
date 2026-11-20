@@ -1,6 +1,6 @@
 #
 # Filename: modules/rust/Makefile
-# Last edited: 2026-11-04 20:19:22
+# Last edited: 2026-11-05 12:39:47
 # Description: Rust module controller that registers targets and includes recipes.
 #
 
@@ -11,10 +11,12 @@ $(error MF_TOOLS_ROOT is not set. Include modules/Makefile before using modules/
 endif
 
 MF_CURRENT_MODULE_ENTRY := $(lastword $(filter %/modules/rust/Makefile,$(MAKEFILE_LIST)))
-$(eval $(call mf_register_module,$(MF_CURRENT_MODULE_ENTRY),build test clippy fmt clean install help))
+$(eval $(call mf_register_module,$(MF_CURRENT_MODULE_ENTRY),build check release test clippy fmt clean install help))
 
 CARGO ?= cargo
 CARGO_BUILD_ARGS ?=
+CARGO_CHECK_ARGS ?=
+CARGO_RELEASE_ARGS ?=
 CARGO_TEST_ARGS ?=
 CARGO_CLIPPY_ARGS ?=
 CARGO_FMT_ARGS ?=
