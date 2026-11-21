@@ -1,0 +1,20 @@
+name: wtree module
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show GNU Make version
+        run: make --version
+      - name: Test manifest fetch and dispatch
+        run: bash tests/wtree-dispatch.sh
+      - name: Test lazy binary installation and module behavior
+        run: bash tests/wtree-module.sh

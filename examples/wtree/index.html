@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>wtree example</title>
+    <style>
+      body { font-family: system-ui, sans-serif; display: grid; place-items: center; min-height: 100vh; margin: 0; background: #0f172a; color: #e2e8f0; }
+      main { text-align: center; padding: 2rem; }
+      code { background: #1e293b; padding: 0.15em 0.4em; border-radius: 4px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>wtree route is live</h1>
+      <p>Served over HTTPS at <code id="host"></code></p>
+    </main>
+    <script>document.getElementById('host').textContent = window.location.host;</script>
+  </body>
+</html>

@@ -35,8 +35,8 @@ This repository hosts the canonical makefiles published at `https://darianbr.git
 
 ## Examples First
 
-Prefer starting from [examples/README.md](examples/README.md). Each module has a
-standalone MVP under `examples/<module>/` so you can copy only what you need.
+Prefer starting from [examples/README.md](examples/README.md). Standalone MVPs
+for selected modules live under `examples/<module>/` so you can copy only what you need.
 
 - `examples/codeception/`
 - `examples/phpunit/`
@@ -45,6 +45,7 @@ standalone MVP under `examples/<module>/` so you can copy only what you need.
 - `examples/rust/`
 - `examples/typescript/`
 - `examples/vitest/`
+- `examples/wtree/`
 - `examples/stacked-tests/`
 - `examples/docker/`
 
@@ -98,7 +99,7 @@ $ make composer build
 The `npm` and `build` examples assume the consumer has imported an npm module
 and that both modules expose a `build` target. The currently published modules
 in this repository are `codeception`, `composer`, `docker`, `npm`, `phpunit`,
-`rust`, `typescript`, and `vitest`; Composer does not expose `build`.
+`rust`, `typescript`, `vitest`, and `wtree`; Composer does not expose `build`.
 Consequently, `make composer build` in a consumer using the published Composer
 module fails validation before running any recipe. Scoped examples include
 `make composer install`, `make npm install`, and `make docker clean`. The npm
@@ -267,6 +268,64 @@ file layout and target safety rules.
 | vitest | `coverage::` | Runs Vitest with HTML coverage output (default directory `coverage/vitest`). |
 | vitest | `coverage-open::` | Regenerates the HTML coverage report and opens it with `BROWSER`, `xdg-open`, or `open`. |
 | vitest | `clean::` | Removes Vitest coverage output through shared clean guardrails. |
+| wtree | `install::` | Lazily installs the pinned, SHA-256-verified CLI in `.makefiles/tools/`. |
+| wtree | `up::` | Registers the current worktree with `WTREE_PORT` and optional `WTREE_SLUG`. |
+| wtree | `down::` | Unregisters the current worktree, or the route selected by `WTREE_SLUG`. |
+| wtree | `status::` | Lists registered routes. |
+| wtree | `clean::` | No-op; does not remove routes or stop the proxy. |
+
+### Worktree proxy
+
+Include `.makefiles/modules/wtree/Makefile` using the bootstrap pattern above.
+`make wtree up WTREE_PORT=3000` registers a local HTTPS route; use
+`WTREE_SLUG=your-slug` to override branch inference, `make wtree status` to
+list routes, and `make wtree down` to remove the current worktree's route.
+An unset or empty `WTREE_PORT` makes `up` fail before installing or invoking
+the CLI. The CLI validates the port's value.
+The project owns starting and stopping its development server. The CLI does
+not check whether the upstream port is listening. Removing a route does not
+stop the server or the shared proxy container.
+
+The first `install`, `up`, `down`, or `status` downloads only the matching
+`wtree_<version>_<os>_<arch>.tar.gz` and `SHA256SUMS` over HTTPS, verifies
+SHA-256, and atomically installs the executable. `help` and scoped `clean`
+do not download or run it. Release archives are selected for Linux and macOS
+on amd64 and arm64; Windows is not yet supported. The macOS proxy runtime has
+not been validated: Docker Desktop's VM-based host networking does not guarantee
+the intended loopback-only boundary. Bootstrap needs `curl`, `tar`, `uname`, `awk`,
+`mktemp`, and either `sha256sum` or `shasum`, plus standard file utilities. It
+does not install Go.
+
+| Variable | Purpose |
+|----------|---------|
+| `WTREE_VERSION` | Release version without `v` (default `0.1.0`). |
+| `WTREE_BIN` | Executable file path (default `.makefiles/tools/wtree-$(WTREE_VERSION)`); symlinks and directories are rejected. |
+| `WTREE_RELEASE_URL` | HTTPS release directory (default `https://github.com/darianbr/worktree/releases/download/v$(WTREE_VERSION)`); override if releases are hosted elsewhere. |
+| `WTREE_PORT` | Local development-server port passed to `up`; required by the CLI. |
+| `WTREE_SLUG` | Optional route slug passed to `up` and `down`. |
+| `WTREE_CONTAINER_ENGINE` | Optional engine override forwarded to the CLI. |
+| `WTREE_CERT_FILE`, `WTREE_KEY_FILE` | Optional certificate and key paths forwarded to the CLI. |
+
+The checksum manifest is downloaded from the same HTTPS release directory as
+the archive: it detects corruption but is not an independent authenticity
+signature. Trust the selected release host. Existing executable files at
+`WTREE_BIN` are reused without re-verification; when overriding that path, the
+user is responsible for the binary and for changing the path when switching
+versions. A missing or non-executable regular file is installed or replaced.
+
+The wildcard certificate and matching private key must be provisioned separately;
+they are never downloaded by this module. The CLI defaults to the `wtree/tls/`
+directory under the user's configuration directory. Keep key material out of Git.
+The CLI checks the certificate pair, validity and wildcard name, but does not
+verify its chain against client trust roots. Certificate renewal and controlled
+proxy recreation after certificate replacement are external responsibilities.
+Linux rootless containers may require an administrator to permit binding port
+443. `WTREE_SELINUX_RELABEL=1` opts Podman into potentially recursive,
+persistent relabeling of the configuration directory and TLS files; consult the
+CLI documentation before enabling it.
+The assumed default release location must exist before automatic installation can
+work; set `WTREE_RELEASE_URL` to the actual HTTPS release directory if different,
+or set `WTREE_BIN` to an existing executable.
 
 Aggregate-contributing targets use double-colon (`::`) so multiple modules can contribute to the same target name. `make clean` runs the shared root cleanup and the `clean::` recipes from every imported module that defines them, in import order; for the Composer + Docker example above, that is root + composer + docker. The Codeception, PHPUnit, and Composer clean recipes are independent and do not invoke one another.
 
@@ -305,7 +364,7 @@ The `fetch` script (hosted at `https://darianbr.github.io/makefiles/fetch`) down
 fetch <module> [--force]
 ```
 
-- `<module>` — module name, e.g. `codeception`, `composer`, `docker`, `npm`, `phpunit`, `rust`, `typescript`, or `vitest`. Must match a folder under `modules/` listed in `modules/manifest.txt`.
+- `<module>` — module name, e.g. `codeception`, `composer`, `docker`, `npm`, `phpunit`, `rust`, `typescript`, `vitest`, or `wtree`. Must match a folder under `modules/` listed in `modules/manifest.txt`.
 - `--force` — refetch even if the module is already present.
 
 Behavior:

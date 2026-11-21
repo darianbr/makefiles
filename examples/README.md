@@ -1,6 +1,6 @@
 # Examples
 
-This folder contains standalone MVP examples for each module. Pick one folder, run `make <target>`, and adapt it into your own project.
+This folder contains standalone MVP examples for selected modules. Pick one folder, run `make <target>`, and adapt it into your own project.
 
 ## Modules
 
@@ -11,6 +11,7 @@ This folder contains standalone MVP examples for each module. Pick one folder, r
 - [rust](rust): Rust build, check, release, test, clippy, fmt + clean
 - [typescript](typescript): TypeScript build + check
 - [vitest](vitest): Vitest test + coverage
+- [wtree](wtree): local HTTPS worktree route and project-owned dev server
 - [stacked-tests](stacked-tests): Vitest + PHPUnit + Codeception in one project
 - [docker](docker): Docker placeholder module wiring
 
