@@ -1,6 +1,6 @@
 #
 # Filename: modules/typescript/targets.mk
-# Last edited: 2026-11-04 20:19:22
+# Last edited: 2026-11-05 12:39:47
 # Description: TypeScript module target recipes.
 #
 
@@ -11,22 +11,28 @@ endif
 ifndef MF_TYPESCRIPT_TARGETS_INCLUDED
 MF_TYPESCRIPT_TARGETS_INCLUDED := 1
 
-.PHONY: help build test clean install
+.PHONY: help build check clean install
 
 build:: typescript-prerequisites
 	@cd "$(MF_PROJECT_ROOT)" && \
-	if [ -f "$(TSC)" ]; then \
+	if [ -x "$(TSC)" ] || command -v "$(TSC)" >/dev/null 2>&1; then \
 		"$(TSC)" $(TSC_BUILD_ARGS); \
+	elif command -v tsc >/dev/null 2>&1; then \
+		tsc $(TSC_BUILD_ARGS); \
 	else \
-		"$(NPM)" exec -- tsc $(TSC_BUILD_ARGS); \
+		echo "[typescript] TypeScript executable is not available: $(TSC)" >&2; \
+		exit 1; \
 	fi
 
-test:: typescript-prerequisites
+check:: typescript-check-prerequisites
 	@cd "$(MF_PROJECT_ROOT)" && \
-	if [ -f "$(TSC)" ]; then \
-		"$(TSC)" $(TSC_TEST_ARGS); \
+	if [ -x "$(TSC)" ] || command -v "$(TSC)" >/dev/null 2>&1; then \
+		"$(TSC)" $(TSC_CHECK_ARGS); \
+	elif command -v tsc >/dev/null 2>&1; then \
+		tsc $(TSC_CHECK_ARGS); \
 	else \
-		"$(NPM)" exec -- tsc $(TSC_TEST_ARGS); \
+		echo "[typescript] TypeScript executable is not available; run 'make typescript install' first." >&2; \
+		exit 1; \
 	fi
 
 install:: typescript-prerequisites

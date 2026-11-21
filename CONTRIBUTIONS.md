@@ -60,6 +60,38 @@ duplicate public registrations, and the retired `echopath` target. Keep every
 public target in the registration list exactly once and omit private
 prerequisites.
 
+### Shared workflow vocabulary
+
+The required module interface remains `help`, `install`, and `clean`. The
+workflow targets below are shared conventions, not additional requirements:
+register a target only when the module performs that operation. Keep their
+meaning consistent across modules:
+
+- `check`: static validation that does not change source, configuration, or
+  lockfiles and does not run dependency install/update commands or tests. Tools
+  may write local build/cache files or fetch already-locked dependencies.
+- `test`: execute tests. Typechecking by itself belongs under `check`.
+- `build`: produce the normal local build; use a development/debug profile by
+  default when the toolchain has build profiles.
+- `release`: produce an optimized/production build when distinct. It must not
+  publish or deploy the result.
+
+Use double-colon rules for aggregate contributions. When a project has only
+one meaningful build mode, `build` may map to it and `release` may alias it or
+remain unavailable; do not invent a debug mode. The canonical definitions and
+the optional follow-up vocabulary are in [README.md](README.md#shared-workflow-vocabulary).
+The current TypeScript module's type-only check is `check`, not `test`.
+
+### Optional vocabulary for a follow-up phase
+
+The candidate names and their safety guidance are maintained in the canonical
+[README vocabulary section](README.md#optional-vocabulary-for-a-follow-up-phase).
+They are not required targets and must not be registered as no-op recipes.
+
+Document mutation and external effects. In particular, keep formatting and
+dependency updates explicit, and never make publishing, deployment, service
+teardown, or database reset an implicit consequence of a build or clean.
+
 Keep prerequisite configuration and private prerequisite/support rules (and
 their recipes) in `prerequisites.mk`; keep public module target declarations
 and recipes in `targets.mk`. The entry Makefile includes the root and its guard
@@ -81,13 +113,12 @@ Consumers can use either of these forms:
   module's target. The module must be explicitly included by the consumer;
   a cached but unreferenced module is not eligible for dispatch.
 
-For example, when a consumer imports npm and composer modules that both expose
-`build`:
+For example, when a consumer imports modules that both expose `build`:
 
 ```console
-make build          # npm build, then composer build (aggregate)
-make npm build      # npm build only
-make composer build # composer build only
+make build              # all imported build contributions, in import order
+make rust build         # Rust build only
+make typescript build   # TypeScript build only
 ```
 
 Every public module target must be available under its module namespace using
@@ -130,9 +161,10 @@ folders without recreating `.makefiles/` mid-run.
 
 Apply the same dispatch and registration rules to Codeception, PHPUnit,
 TypeScript, and Rust. Keep scoped targets explicit (`make vitest test`,
-`make vitest coverage`, `make typescript test`, `make typescript build`,
-`make rust build`, `make rust test`, `make rust clippy`, `make rust fmt`) and
-register each new public target in the module entry Makefile when it is added.
+`make vitest coverage`, `make typescript check`, `make typescript build`,
+`make rust build`, `make rust check`, `make rust release`, `make rust test`,
+`make rust clippy`, `make rust fmt`) and register each new public target in the
+module entry Makefile when it is added.
 The Rust module resolves its cargo target directory from `cargo metadata`, so
 `CARGO_TARGET_DIR` and `.cargo/config.toml` overrides are honored by `clean`.
 

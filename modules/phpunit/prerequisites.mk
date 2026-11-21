@@ -1,6 +1,6 @@
 #
 # Filename: modules/phpunit/prerequisites.mk
-# Last edited: 2026-11-04 20:19:22
+# Last edited: 2026-11-06 21:34:40
 # Description: PHPUnit executable, coverage, and setup prerequisite rules.
 #
 
@@ -29,8 +29,8 @@ $(MF_PHPUNIT_PATH_DISCOVERY_SCRIPT):
 $(MF_PHPUNIT_COVERAGE_CACHE_PATH): $(MF_PHPUNIT_PATH_DISCOVERY_SCRIPT) $(MF_PHPUNIT_CONFIG_DEP)
 	@mkdir -p "$(dir $@)"
 	@resolved=''; \
-	if [ -x "$(MF_PHPUNIT_PATH_DISCOVERY_SCRIPT)" ]; then \
-		resolved=$$("$(MF_PHPUNIT_PATH_DISCOVERY_SCRIPT)" "$(MF_PROJECT_ROOT)" 2>/dev/null || true); \
+	if [ -f "$(MF_PHPUNIT_PATH_DISCOVERY_SCRIPT)" ]; then \
+		resolved=$$(sh "$(MF_PHPUNIT_PATH_DISCOVERY_SCRIPT)" "$(MF_PROJECT_ROOT)" 2>/dev/null || true); \
 	fi; \
 	if [ -z "$$resolved" ]; then \
 		resolved="$(MF_PROJECT_ROOT)coverage"; \

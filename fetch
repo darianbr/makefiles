@@ -28,38 +28,75 @@ fi
 MODULE="$1"
 FORCE="${2:-}"
 
+if [[ ! "$MODULE" =~ ^[a-zA-Z0-9_-]+$ ]] || [ "$MODULE" = core ]; then
+  echo "Error: invalid module name: $MODULE" >&2
+  exit 1
+fi
+if [ "$#" -gt 2 ] || { [ -n "$FORCE" ] && [ "$FORCE" != "--force" ]; }; then
+  echo "Usage: fetch <module> [--force]" >&2
+  exit 1
+fi
+
 # Skip the network entirely if the module is already fetched.
 if [ -f "$DEST/$MODULE/Makefile" ] && [ "$FORCE" != "--force" ]; then
   echo "Module '$MODULE' already present under $DEST/$MODULE/ (use --force to refetch)."
   exit 0
 fi
 
-# 1. Pull the manifest -- the source of truth for which files exist.
-mkdir -p "$DEST"
-curl -sf "$BASE_URL/manifest.txt" -o "$MANIFEST"
+# 1. Stage downloads separately so a network failure leaves the cache intact.
+mkdir -p .makefiles
+STAGING=$(mktemp -d .makefiles/.fetch.XXXXXX)
+trap 'rm -rf -- "$STAGING"' EXIT
+curl -sf "$BASE_URL/manifest.txt" -o "$STAGING/manifest.txt"
 
 # 2. Collect files to download: root Makefile + shared core files + this
 #    module's files.
-files=""
-while IFS= read -r line; do
+files=()
+module_found=false
+root_found=false
+while IFS= read -r line || [ -n "$line" ]; do
   case "$line" in
-    Makefile)    files="$files $line" ;;
-    core/*)      files="$files $line" ;;
-    "$MODULE"/*) files="$files $line" ;;
+    Makefile|core/*|"$MODULE"/*)
+      if [[ ! "$line" =~ ^[a-zA-Z0-9_./-]+$ ]] || [[ "/$line/" == *"/../"* ]] || [[ "/$line/" == *"/./"* ]] || [[ "$line" == *"//"* ]] || [[ "$line" == */ ]]; then
+        echo "Error: invalid manifest path: $line" >&2
+        exit 1
+      fi
+      for existing in ${files[@]+"${files[@]}"}; do
+        if [ "$existing" = "$line" ]; then
+          echo "Error: duplicate manifest path: $line" >&2
+          exit 1
+        fi
+      done
+      files+=("$line")
+      [ "$line" != Makefile ] || root_found=true
+      [ "$line" != "$MODULE/Makefile" ] || module_found=true
+      ;;
   esac
-done < "$MANIFEST"
+done < "$STAGING/manifest.txt"
 
-if [ -z "$files" ]; then
+if [ "$module_found" != true ]; then
   echo "Error: module '$MODULE' not found in manifest." >&2
   exit 1
 fi
+if [ "$root_found" != true ]; then
+  echo "Error: shared Makefile not found in manifest." >&2
+  exit 1
+fi
 
-# 3. Download each file, preserving its path under .makefiles/modules/.
-for f in $files; do
-  out="$DEST/$f"
+# 3. Download everything before replacing any cached file.
+for f in "${files[@]}"; do
+  out="$STAGING/$f"
   mkdir -p "$(dirname "$out")"
   echo "Fetching $f ..."
   curl -sf "$BASE_URL/$f" -o "$out"
+  case "$f" in *.sh) chmod +x "$out" ;; esac
 done
+
+mkdir -p "$DEST"
+for f in "${files[@]}"; do
+  mkdir -p "$(dirname "$DEST/$f")"
+  mv -f "$STAGING/$f" "$DEST/$f"
+done
+mv -f "$STAGING/manifest.txt" "$MANIFEST"
 
 echo "Module '$MODULE' is ready under $DEST/$MODULE/"

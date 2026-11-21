@@ -54,6 +54,26 @@ The registry rejects missing `clean`, `install`, or `help` registrations,
 duplicate public target names, and the retired `echopath` target. Register each
 public target exactly once.
 
+### Shared Workflow Targets
+
+`help`, `install`, and `clean` are the required module interface. Other common
+workflow targets are optional capabilities; register them only when the module
+implements them, rather than adding placeholder no-op recipes:
+
+- `check` performs static validation without changing source, configuration,
+  or lockfiles and does not run dependency install/update commands or tests.
+  Tools may write local build/cache files or fetch already-locked dependencies.
+- `test` runs tests; typechecking alone is not a test.
+- `build` produces the normal local build, using a development/debug profile
+  by default when the toolchain supports profiles.
+- `release` produces an optimized/production build when distinct, without
+  publishing or deploying it.
+
+For projects with only one meaningful build mode, `build` may map to it and
+`release` may alias it or remain unavailable. Use double-colon rules for
+aggregate contributions. The canonical vocabulary and the optional follow-up
+targets are documented in [README.md](../../README.md#shared-workflow-vocabulary).
+
 Each module entry Makefile includes the required fragments after the root
 include and `MF_TOOLS_ROOT` guard, in this order:
 
