@@ -35,8 +35,8 @@ This repository hosts the canonical makefiles published at `https://darianbr.git
 
 ## Examples First
 
-Prefer starting from [examples/README.md](examples/README.md). Each module has a
-standalone MVP under `examples/<module>/` so you can copy only what you need.
+Prefer starting from [examples/README.md](examples/README.md). Standalone MVPs
+for selected modules live under `examples/<module>/` so you can copy only what you need.
 
 - `examples/codeception/`
 - `examples/phpunit/`
@@ -45,7 +45,6 @@ standalone MVP under `examples/<module>/` so you can copy only what you need.
 - `examples/rust/`
 - `examples/typescript/`
 - `examples/vitest/`
-- `examples/wtree/`
 - `examples/stacked-tests/`
 - `examples/docker/`
 
@@ -235,14 +234,17 @@ Include `.makefiles/modules/wtree/Makefile` using the bootstrap pattern above.
 list routes, and `make wtree down` to remove the current worktree's route.
 An unset or empty `WTREE_PORT` makes `up` fail before installing or invoking
 the CLI. The CLI validates the port's value.
-The project owns starting and stopping its development server; see
-[examples/wtree/README.md](examples/wtree/README.md).
+The project owns starting and stopping its development server. The CLI does
+not check whether the upstream port is listening. Removing a route does not
+stop the server or the shared proxy container.
 
 The first `install`, `up`, `down`, or `status` downloads only the matching
 `wtree_<version>_<os>_<arch>.tar.gz` and `SHA256SUMS` over HTTPS, verifies
 SHA-256, and atomically installs the executable. `help` and scoped `clean`
-do not download or run it. Linux and macOS on amd64 and arm64 are supported;
-Windows is not yet supported. Bootstrap needs `curl`, `tar`, `uname`, `awk`,
+do not download or run it. Release archives are selected for Linux and macOS
+on amd64 and arm64; Windows is not yet supported. The macOS proxy runtime has
+not been validated: Docker Desktop's VM-based host networking does not guarantee
+the intended loopback-only boundary. Bootstrap needs `curl`, `tar`, `uname`, `awk`,
 `mktemp`, and either `sha256sum` or `shasum`, plus standard file utilities. It
 does not install Go.
 
@@ -266,8 +268,16 @@ versions. A missing or non-executable regular file is installed or replaced.
 The wildcard certificate and matching private key must be provisioned separately;
 they are never downloaded by this module. The CLI defaults to the `wtree/tls/`
 directory under the user's configuration directory. Keep key material out of Git.
+The CLI checks the certificate pair, validity and wildcard name, but does not
+verify its chain against client trust roots. Certificate renewal and controlled
+proxy recreation after certificate replacement are external responsibilities.
+Linux rootless containers may require an administrator to permit binding port
+443. `WTREE_SELINUX_RELABEL=1` opts Podman into potentially recursive,
+persistent relabeling of the configuration directory and TLS files; consult the
+CLI documentation before enabling it.
 The assumed default release location must exist before automatic installation can
-work; set `WTREE_RELEASE_URL` to the actual HTTPS release directory if different.
+work; set `WTREE_RELEASE_URL` to the actual HTTPS release directory if different,
+or set `WTREE_BIN` to an existing executable.
 
 Aggregate-contributing targets use double-colon (`::`) so multiple modules can contribute to the same target name. `make clean` runs the shared root cleanup and the `clean::` recipes from every imported module that defines them, in import order; for the Composer + Docker example above, that is root + composer + docker. The Codeception, PHPUnit, and Composer clean recipes are independent and do not invoke one another.
 
@@ -299,7 +309,7 @@ The `fetch` script (hosted at `https://darianbr.github.io/makefiles/fetch`) down
 fetch <module> [--force]
 ```
 
-- `<module>` — module name, e.g. `codeception`, `composer`, `docker`, `npm`, `phpunit`, `rust`, `typescript`, or `vitest`. Must match a folder under `modules/` listed in `modules/manifest.txt`.
+- `<module>` — module name, e.g. `codeception`, `composer`, `docker`, `npm`, `phpunit`, `rust`, `typescript`, `vitest`, or `wtree`. Must match a folder under `modules/` listed in `modules/manifest.txt`.
 - `--force` — refetch even if the module is already present.
 
 Behavior:

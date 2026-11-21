@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
+unset MAKEFLAGS GNUMAKEFLAGS MF_LEGACY_GOALS MF_SCOPED_MODULE
 unset WTREE_VERSION WTREE_BIN WTREE_RELEASE_URL WTREE_PORT WTREE_SLUG WTREE_CONTAINER_ENGINE WTREE_CERT_FILE WTREE_KEY_FILE
 
 repo=$(cd "$(dirname "$0")/.." && pwd)
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 real_tar=$(command -v tar)
-real_make=$(command -v make)
+real_make=$(command -v "${MAKE_BIN:-make}")
 real_sha256sum=$(command -v sha256sum || true)
 real_shasum=$(command -v shasum || true)
 if [[ -z "$real_sha256sum" && -z "$real_shasum" ]]; then
@@ -15,8 +16,8 @@ if [[ -z "$real_sha256sum" && -z "$real_shasum" ]]; then
 fi
 export real_tar real_sha256sum real_shasum
 export FIXTURE="$tmp" CURL_LOG="$tmp/curl.log" CLI_LOG="$tmp/cli.log" TOOL_LOG="$tmp/tool.log"
-mkdir -p "$tmp/bin" "$tmp/releases" "$tmp/archive" "$tmp/project/.makefiles/modules"
-cp -R "$repo/modules/." "$tmp/project/.makefiles/modules/"
+mkdir -p "$tmp/bin" "$tmp/releases" "$tmp/archive" "$tmp/project"
+(cd "$tmp/project" && MAKEFILES_BASE_URL="file://$repo/modules" bash "$repo/fetch" wtree)
 cat > "$tmp/project/Makefile" <<'EOF'
 -include .makefiles/modules/wtree/Makefile
 EOF
@@ -80,8 +81,8 @@ chmod +x "$tmp/bin/"*
 export PATH="$tmp/bin:$PATH"
 cd "$tmp/project"
 fail() { echo "FAIL: $*" >&2; exit 1; }
-run() { make --no-print-directory "$@" >"$tmp/out" 2>&1 || { cat "$tmp/out" >&2; fail "make $*"; }; }
-fails() { if make --no-print-directory "$@" >"$tmp/out" 2>&1; then fail "expected make $* to fail"; fi; }
+run() { "$real_make" --no-print-directory "$@" >"$tmp/out" 2>&1 || { cat "$tmp/out" >&2; fail "make $*"; }; }
+fails() { if "$real_make" --no-print-directory "$@" >"$tmp/out" 2>&1; then fail "expected make $* to fail"; fi; }
 contains() { grep -F -- "$2" "$1" >/dev/null || { cat "$1" >&2; fail "missing $2"; }; }
 
 # Help and scoped clean must not provision binaries or invoke the CLI.
@@ -179,8 +180,16 @@ before=$(wc -l < "$CLI_LOG")
 run wtree clean
 [[ $(wc -l < "$CLI_LOG") -eq $before && -x .makefiles/tools/wtree-0.1.0 ]] || fail 'clean touched CLI or binary'
 
-# The example composes the module with a project-owned foreground server.
-cp "$repo/examples/wtree/Makefile" Makefile
+# A consumer can compose the module with a project-owned foreground server.
+cat > Makefile <<'EOF'
+WTREE_PORT ?= 8000
+export WTREE_PORT
+include .makefiles/modules/wtree/Makefile
+.PHONY: start stop
+start:
+EOF
+printf '\t%s\n' '$(MAKE) wtree up' 'python3 -m http.server "$$WTREE_PORT" --bind 127.0.0.1' >> Makefile
+printf 'stop:\n\t%s\n' '$(MAKE) wtree down' >> Makefile
 cat > "$tmp/bin/python3" <<'EOF'
 #!/bin/sh
 printf 'server:' >> "$CLI_LOG"
@@ -193,11 +202,11 @@ run stop WTREE_SLUG=example
 contains "$CLI_LOG" 'args: <up> <--port> <3456> <--slug> <example>'
 contains "$CLI_LOG" 'server: <-m> <http.server> <3456> <--bind> <127.0.0.1>'
 contains "$CLI_LOG" 'args: <down> <--slug> <example>'
-hostile_example_port='3"; touch example-injected; #'
-run start "WTREE_PORT=$hostile_example_port"
-contains "$CLI_LOG" "args: <up> <--port> <$hostile_example_port>"
-contains "$CLI_LOG" "server: <-m> <http.server> <$hostile_example_port> <--bind> <127.0.0.1>"
-[[ ! -e example-injected ]] || fail 'example port executed shell commands'
+hostile_consumer_port='3"; touch consumer-injected; #'
+run start "WTREE_PORT=$hostile_consumer_port"
+contains "$CLI_LOG" "args: <up> <--port> <$hostile_consumer_port>"
+contains "$CLI_LOG" "server: <-m> <http.server> <$hostile_consumer_port> <--bind> <127.0.0.1>"
+[[ ! -e consumer-injected ]] || fail 'consumer port executed shell commands'
 
 # Checksum mismatch, absent entry, unsupported platform, and missing tools fail closed.
 rm -f .makefiles/tools/wtree-0.2.0
