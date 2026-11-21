@@ -3,6 +3,7 @@ core/clean.mk
 core/discover-common.sh
 core/dispatch.mk
 core/help.mk
+core/open-browser.sh
 core/paths.mk
 core/remove-with-guardrails.sh
 core/registry.mk

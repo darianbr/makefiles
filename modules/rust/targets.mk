@@ -1,6 +1,6 @@
 #
 # Filename: modules/rust/targets.mk
-# Last edited: 2026-11-04 20:19:22
+# Last edited: 2026-11-05 12:39:47
 # Description: Rust module target recipes.
 #
 
@@ -11,10 +11,16 @@ endif
 ifndef MF_RUST_TARGETS_INCLUDED
 MF_RUST_TARGETS_INCLUDED := 1
 
-.PHONY: help build test clippy fmt clean install
+.PHONY: help build check release test clippy fmt clean install
 
 build:: rust-prerequisites
 	@cd "$(MF_PROJECT_ROOT)" && "$(CARGO)" build $(CARGO_BUILD_ARGS)
+
+check:: rust-prerequisites
+	@cd "$(MF_PROJECT_ROOT)" && "$(CARGO)" check --locked $(CARGO_CHECK_ARGS)
+
+release:: rust-prerequisites
+	@cd "$(MF_PROJECT_ROOT)" && "$(CARGO)" build --release $(CARGO_RELEASE_ARGS)
 
 test:: rust-prerequisites
 	@cd "$(MF_PROJECT_ROOT)" && "$(CARGO)" test $(CARGO_TEST_ARGS)

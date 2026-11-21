@@ -174,6 +174,51 @@ Consumers can run a setup target before selected scoped invocations by setting
 pairs in `MF_DISPATCH_SETUP_PAIRS`. The setup target runs only for those pairs,
 before the selected module target.
 
+## Shared Workflow Vocabulary
+
+The required module interface is `help`, `install`, and `clean`. Other shared
+workflow targets are capability-based: modules register them only when they
+provide the operation. Aggregate invocations run every imported module that
+implements the requested target.
+
+| Target | Meaning |
+|--------|---------|
+| `check` | Static validation that does not change source, configuration, or lockfiles and does not run dependency install/update commands or tests. Tools may write local build/cache files or fetch already-locked dependencies. |
+| `test` | Execute the project's test suites. Typechecking alone is not a test. |
+| `build` | Produce the normal local build. Where a toolchain has build profiles, this uses its development/debug profile by default. |
+| `release` | Produce an optimized/production build when distinct. It does not publish or deploy the result. |
+
+These names do not force every module to implement every operation. For a
+project whose ordinary build is already production-oriented (for example, a
+frontend bundler), `build` may map to that build and `release` may alias it or
+remain unavailable. Do not invent a debug build where the tool has no such
+mode. Keep `publish`, `deploy`, and other external effects separate from
+`release`.
+
+### Optional Vocabulary for a Follow-up Phase
+
+The following are candidate conventions, not required targets or claims that
+the current modules implement them. Add a target only when its behavior is
+well-defined for the project, and document whether it mutates source, accesses
+services, or has external effects.
+
+| Area | Candidate targets |
+|------|-------------------|
+| Local runtime | `dev`, `run`, `start`, `preview`, `watch` |
+| Quality and reports | `format`, `format-check`, `lint`, `typecheck`, `coverage`, `coverage-open`, `bench`, `docs` |
+| Artifacts and delivery | `package`, `image-build`, `publish`, `deploy` |
+| Services and data | `stack-up`, `stack-down`, `logs`, `status`, `exec`, `db-migrate`, `db-seed`, `db-reset` |
+| Dependency maintenance | `deps-update`, `deps-audit` |
+
+Prefer read-only checks for `check`; use `format` for source-mutating
+formatters and `format-check` for CI-safe verification. Keep dependency updates
+separate from `install`, and make publishing, deployment, service teardown, and
+database reset explicit rather than prerequisites or side effects of `build`,
+`release`, or `clean`. Application-specific targets such as `dev` and `run`
+remain optional and should have a clear project-level meaning. Focused targets
+such as `lint`, `typecheck`, and `format-check` may be callable independently;
+aggregate `check` should include the applicable read-only checks.
+
 ## Module Targets
 
 Every consumer module is required to expose `clean`, `install`, and `help`,
@@ -206,14 +251,16 @@ file layout and target safety rules.
 | phpunit | `coverage-open::` | Regenerates the HTML coverage report and opens `coverage/index.html` with `BROWSER`, `xdg-open`, or `open`. |
 | phpunit | `clean::` | Removes PHPUnit suite artefacts: HTML coverage output (resolved from `phpunit.xml` or fallback `coverage/`), `.phpunit.cache`, and `.phpunit.result.cache`. |
 | rust | `install::` | Runs `cargo fetch` in the project root. |
-| rust | `build::` | Runs `cargo build` in the project root. Set `CARGO_BUILD_ARGS` to pass extra flags (for example `--release`). |
+| rust | `build::` | Runs the default development-profile `cargo build`. Set `CARGO_BUILD_ARGS` to pass extra build flags. |
+| rust | `check::` | Runs `cargo check --locked` without producing the final executable or changing `Cargo.lock`. Set `CARGO_CHECK_ARGS` to pass extra flags. |
+| rust | `release::` | Runs `cargo build --release`. Set `CARGO_RELEASE_ARGS` to pass extra flags; this only creates a local release build. |
 | rust | `test::` | Runs `cargo test` in the project root. Set `CARGO_TEST_ARGS` to pass extra flags. |
 | rust | `clippy::` | Runs `cargo clippy` in the project root. Set `CARGO_CLIPPY_ARGS` to pass extra flags (for example `-- -D warnings`). |
 | rust | `fmt::` | Runs `cargo fmt` in the project root. Set `CARGO_FMT_ARGS` to pass extra flags (for example `-- --check`). |
 | rust | `clean::` | Removes the cargo target directory through shared clean guardrails. The effective directory is resolved from `cargo metadata` (honoring `CARGO_TARGET_DIR` and `.cargo/config.toml`) with a fallback to `target`. |
 | typescript | `install::` | Checks npm, `package.json`, and the TypeScript project; attempts npm install if TypeScript is missing. |
 | typescript | `build::` | Runs TypeScript compilation using the configured project file (default `tsconfig.json`) and output directory (default `build/typescript`). |
-| typescript | `test::` | Runs TypeScript type-check mode (`--noEmit`) using the configured project file. |
+| typescript | `check::` | Runs TypeScript type-check mode (`--noEmit`) using the configured project file; it does not install dependencies. Run `make typescript install` first if the compiler is missing. Set `TSC_CHECK_ARGS` to pass extra flags; the legacy `TSC_TEST_ARGS` override is also accepted. |
 | typescript | `clean::` | Removes TypeScript build artefacts (`build/typescript` and `.tsbuildinfo`) through shared clean guardrails. |
 | vitest | `install::` | Checks npm and `package.json`; attempts npm install if Vitest is missing. |
 | vitest | `test::` | Runs Vitest in run mode (`vitest run`). |
@@ -281,6 +328,13 @@ or set `WTREE_BIN` to an existing executable.
 
 Aggregate-contributing targets use double-colon (`::`) so multiple modules can contribute to the same target name. `make clean` runs the shared root cleanup and the `clean::` recipes from every imported module that defines them, in import order; for the Composer + Docker example above, that is root + composer + docker. The Codeception, PHPUnit, and Composer clean recipes are independent and do not invoke one another.
 
+The TypeScript module's former `test` target only ran `tsc --noEmit`; that
+operation is now `check`. Use a real test-runner module such as Vitest for
+`test` targets. Consumers with a cached TypeScript module should run
+`fetch typescript --force`, then use `make typescript check` (and `make check`
+for aggregate static checks). Existing `TSC_TEST_ARGS` overrides remain
+accepted; prefer `TSC_CHECK_ARGS` for new configurations.
+
 ## Repository Layout
 
 The module paths below describe the required convention, not a compliance
@@ -315,8 +369,9 @@ fetch <module> [--force]
 Behavior:
 - **Idempotent**: if `.makefiles/modules/<module>/Makefile` already exists, `fetch` exits without touching the network (use `--force` to refetch).
 - **Downloads**: the shared root `Makefile`, all `core/*` shared files, plus every file the manifest assigns to the requested module.
+- **Safe downloads**: files are staged before replacing the cache, so a failed download leaves previously cached files intact. Downloaded shell helpers are executable.
 - **`MAKEFILES_BASE_URL`**: override the base URL (default `https://darianbr.github.io/makefiles/modules`) — useful for testing against a local server.
-- **Errors**: exits non-zero if no module name is given, if the module is not in the manifest, or if any download fails (`curl -sf`).
+- **Errors**: exits non-zero for invalid arguments or manifest paths, missing modules, or failed downloads (`curl -sf`).
 
 ## PHPUnit
 PHPUnit is available as a native module under `modules/phpunit/`. It expects the
@@ -403,11 +458,11 @@ the same resolved path:
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | `MF_TOOLS_ROOT is not set. Include modules/Makefile ...` | The shared root Makefile didn't download (network failure, site down, or a partial cache), so the module guard fires. | Run `fetch <module> --force`, or delete `.makefiles/` and retry the target. Check that `https://darianbr.github.io/makefiles` is reachable. |
-| `fetch` fails mid-download (`curl` error, partial files) | Network hiccup or the Pages site was mid-rebuild. | Re-run `fetch <module> --force`. If it persists, check the site is up and your network. |
+| `fetch` fails mid-download (`curl` error) | Network hiccup or the Pages site was mid-rebuild. | Retry the fetch. Previously cached files are preserved if a download fails. If it persists, check the site is up and your network. |
 | `ERROR: Invalid installer signature` when provisioning Composer | The downloaded Composer installer doesn't match the published SHA-384 signature (corrupted download or tampering). | Re-run `make install` (the installer files are deleted and re-downloaded). If it repeats, check your network/proxy. |
 | `make install` fails: no `composer.json` | The composer module runs `composer install` in your project root, which requires a `composer.json` there. | Add a `composer.json` to the project root, or run the target from a directory that has one. |
 | `[typescript] project file not found` | `TSC_PROJECT` does not exist in the project root. | Create the project file, or set `TSC_PROJECT` to a valid relative path (for example `tsconfig.build.json`). |
-| `make typescript test` reports missing Node types or lib symbols | TypeScript project settings/dependencies are incomplete for your runtime. | Install required type packages (for example `@types/node`) and align `compilerOptions.types`/`lib` in the chosen TS config. |
+| `make typescript check` reports missing Node types or lib symbols | TypeScript project settings/dependencies are incomplete for your runtime. | Install required type packages (for example `@types/node`) and align `compilerOptions.types`/`lib` in the chosen TS config. |
 | `[vitest] Vitest executable not found` | Vitest is not installed in project dependencies and no global binary is available. | Add `vitest` (and optional coverage provider package) to dev dependencies, or override `VITEST_BIN` to a valid path. |
 | `make phpunit install-phpunit-binary` fails | The standalone PHAR download URL is unavailable or invalid. | Check network access, or set `PHPUNIT_VERSION`/`PHPUNIT_URL` to a valid PHPUnit PHAR source. |
 | `[phpunit] PHP executable not found` or `[phpunit] PHPUnit executable not found` | PHP is not installed, or Composer has not installed `vendor/bin/phpunit`. | Install PHP and run `composer install`, or override `PHP`/`PHPUNIT` with paths available to the project. |
@@ -417,7 +472,7 @@ the same resolved path:
 **How the bootstrap works.** Your Makefile `-include`s the module file and defines a pattern rule for `.makefiles/modules/%/Makefile`. On the first run the module file is missing, so `make` runs the rule, which pipes `fetch` over `curl` to download the module (and the shared root Makefile) into `.makefiles/modules/`. `make` then re-reads the Makefile and continues with the real target. Later runs find the module file already present, so no download happens.
 
 ## Contributing
-Please read [CONTRIBUTIONS.md](CONTRIBUTIONS.md) before opening a PR. It covers directory layout, header requirements, and how to structure module-specific targets so they compose cleanly. Remember to add any new file to `modules/manifest.txt` so `fetch` can download it.
+Please read [CONTRIBUTIONS.md](CONTRIBUTIONS.md) before opening a PR. It covers directory layout, header requirements, and how to structure module-specific targets so they compose cleanly. Run `bash tests/target-vocabulary.sh` and `bash tests/review-regressions.sh` for offline regression checks. Remember to add any new published module file to `modules/manifest.txt` so `fetch` can download it.
 
 ## Support
 If you spot a bug or have an idea for a new module, open an issue or start a discussion. When filing bugs, include the target you ran, the module(s) involved, and any console output so we can reproduce it quickly.
