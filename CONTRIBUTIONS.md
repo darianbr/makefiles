@@ -284,6 +284,16 @@ Checklist:
 
 ## 7. Pre-PR Checklist
 
+From the repository root, run `make check` before submitting; it is also the
+Makefile's default goal and is enforced by CI on every push and pull request.
+`check-manifest` verifies that `modules/manifest.txt` exactly covers the files
+under `modules/` (excluding the manifest itself), and `check-shell`
+syntax-checks `fetch` with Bash and module helper scripts with POSIX `sh`.
+These local checks require GNU Make, Bash, POSIX `sh`, and the standard
+`find`, `sed`, `sort`, and `diff` utilities. They do not access the network or
+run language-specific example workflows; run the relevant targets under
+`examples/<module>/` separately for those.
+
 Before submitting:
 
 - [ ] Headers updated with accurate timestamps & descriptions.
