@@ -45,6 +45,7 @@ for selected modules live under `examples/<module>/` so you can copy only what y
 - `examples/rust/`
 - `examples/typescript/`
 - `examples/vitest/`
+- `examples/wtree/`
 - `examples/stacked-tests/`
 - `examples/docker/`
 
