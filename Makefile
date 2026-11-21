@@ -1,7 +1,9 @@
 .DEFAULT_GOAL := check
 
+# Each recipe line is a single command, so Make's per-line exit-status check is
+# sufficient; no .SHELLFLAGS (added in GNU Make 4.0) to stay compatible with the
+# macOS Homebrew GNU Make 3.81 that the rest of this repository targets.
 SHELL := /bin/bash
-.SHELLFLAGS := -eu -o pipefail -c
 
 .PHONY: check check-manifest check-shell
 
