@@ -21,10 +21,26 @@ SH
 chmod +x "$tmp/bin/curl"
 export REMOTE="$tmp/remote" CURL_LOG="$tmp/curl.log"
 export PATH="$tmp/bin:$PATH" MAKEFILES_BASE_URL=https://test.invalid/modules
+fetch_bash=${FETCH_BASH:-bash}
 : > "$CURL_LOG"
 
 cd "$tmp/project"
-bash "$repo/fetch" phpunit >/dev/null
+if ! "$fetch_bash" "$repo/fetch" phpunit >"$tmp/out" 2>&1; then
+  echo 'Expected initial module fetch to succeed:' >&2
+  cat "$tmp/out" >&2
+  exit 1
+fi
+while IFS= read -r path || [ -n "$path" ]; do
+  case "$path" in
+    Makefile|core/*|phpunit/*)
+      if ! cmp "$REMOTE/$path" ".makefiles/modules/$path"; then
+        echo "Expected fetched file: $path" >&2
+        cat "$tmp/out" >&2
+        exit 1
+      fi
+      ;;
+  esac
+done < "$REMOTE/manifest.txt"
 test -x .makefiles/modules/phpunit/discover-paths.sh
 test -x .makefiles/modules/core/open-browser.sh
 cp .makefiles/modules/phpunit/Makefile "$tmp/original"
@@ -33,41 +49,43 @@ cp .makefiles/modules/manifest.txt "$tmp/original-manifest"
 
 # Existing modules skip the network; failed force refresh preserves the cache.
 : > "$CURL_LOG"
-bash "$repo/fetch" phpunit >/dev/null
+"$fetch_bash" "$repo/fetch" phpunit >/dev/null
 test ! -s "$CURL_LOG"
 printf '%s\n' changed > "$REMOTE/Makefile"
-if FAIL_PATH=phpunit/targets.mk bash "$repo/fetch" phpunit --force >"$tmp/out" 2>&1; then
+if FAIL_PATH=phpunit/targets.mk "$fetch_bash" "$repo/fetch" phpunit --force >"$tmp/out" 2>&1; then
   echo 'Expected a failed fetch' >&2; exit 1
 fi
 cmp "$tmp/original" .makefiles/modules/phpunit/Makefile
 cmp "$tmp/original-root" .makefiles/modules/Makefile
 cmp "$tmp/original-manifest" .makefiles/modules/manifest.txt
-if FAIL_PATH=typescript/targets.mk bash "$repo/fetch" typescript >"$tmp/out" 2>&1; then
+if FAIL_PATH=typescript/targets.mk "$fetch_bash" "$repo/fetch" typescript >"$tmp/out" 2>&1; then
   echo 'Expected a failed first fetch' >&2; exit 1
 fi
 test ! -e .makefiles/modules/typescript/Makefile
-bash "$repo/fetch" typescript >/dev/null
+"$fetch_bash" "$repo/fetch" typescript >/dev/null
 test -f .makefiles/modules/typescript/targets.mk
 # Restore the root snapshot after the successful TypeScript fetch.
 cp "$tmp/original-root" .makefiles/modules/Makefile
-if bash "$repo/fetch" unknown >"$tmp/out" 2>&1 || ! grep -q "module 'unknown' not found" "$tmp/out"; then
+if "$fetch_bash" "$repo/fetch" unknown >"$tmp/out" 2>&1 || ! grep -q "module 'unknown' not found" "$tmp/out"; then
   echo 'Expected unknown module rejection' >&2; exit 1
 fi
 test ! -e .makefiles/modules/unknown/Makefile
-if bash "$repo/fetch" ../phpunit >"$tmp/out" 2>&1 || ! grep -q 'invalid module name' "$tmp/out"; then
+if "$fetch_bash" "$repo/fetch" ../phpunit >"$tmp/out" 2>&1 || ! grep -q 'invalid module name' "$tmp/out"; then
   echo 'Expected unsafe module name rejection' >&2; exit 1
 fi
 printf '%s\n' 'phpunit/../escape' >> "$REMOTE/manifest.txt"
-if bash "$repo/fetch" phpunit --force >"$tmp/out" 2>&1 || ! grep -q 'invalid manifest path' "$tmp/out"; then
+if "$fetch_bash" "$repo/fetch" phpunit --force >"$tmp/out" 2>&1 || ! grep -q 'invalid manifest path' "$tmp/out"; then
   echo 'Expected unsafe manifest path rejection' >&2; exit 1
 fi
 cmp "$tmp/original-root" .makefiles/modules/Makefile
-cp "$repo/modules/manifest.txt" "$REMOTE/manifest.txt"
-printf '%s\n' 'phpunit/Makefile' >> "$REMOTE/manifest.txt"
-if bash "$repo/fetch" phpunit --force >"$tmp/out" 2>&1 || ! grep -q 'duplicate manifest path' "$tmp/out"; then
-  echo 'Expected duplicate manifest path rejection' >&2; exit 1
-fi
-cmp "$tmp/original-root" .makefiles/modules/Makefile
+for path in Makefile core/clean.mk phpunit/Makefile; do
+  cp "$repo/modules/manifest.txt" "$REMOTE/manifest.txt"
+  printf '%s\n' "$path" >> "$REMOTE/manifest.txt"
+  if "$fetch_bash" "$repo/fetch" phpunit --force >"$tmp/out" 2>&1 || ! grep -Fq "duplicate manifest path: $path" "$tmp/out"; then
+    echo "Expected duplicate manifest path rejection: $path" >&2; exit 1
+  fi
+  cmp "$tmp/original-root" .makefiles/modules/Makefile
+done
 
 # Helpers downloaded by older versions lacked executable permissions.
 cp -R "$repo/modules/codeception" .makefiles/modules/
