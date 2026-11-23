@@ -46,6 +46,7 @@ while [ "$#" -gt 0 ]; do
     -o) out=$2; shift 2 ;;
     --proto) protocol=$2; shift 2 ;;
     --proto-redir) redirect_protocol=$2; shift 2 ;;
+    --max-time|--connect-timeout) shift 2 ;;
     -*) shift ;;
     *) url=$1; shift ;;
   esac

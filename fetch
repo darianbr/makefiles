@@ -19,6 +19,10 @@ BASE_URL="${MAKEFILES_BASE_URL:-https://darianbr.github.io/makefiles/modules}"
 DEST=".makefiles/modules"
 MANIFEST="$DEST/manifest.txt"
 
+# Bound every download so a stalled network fails fast instead of hanging.
+MAX_TIME="${MAKEFILES_FETCH_MAX_TIME:-30}"
+CONNECT_TIMEOUT="${MAKEFILES_FETCH_CONNECT_TIMEOUT:-10}"
+
 if [ -z "${1:-}" ]; then
   echo "Error: no module name provided." >&2
   echo "Usage: fetch <module> [--force]" >&2
@@ -43,11 +47,25 @@ if [ -f "$DEST/$MODULE/Makefile" ] && [ "$FORCE" != "--force" ]; then
   exit 0
 fi
 
+# download <url> <dest> <label>: bounded curl with a clear timeout message.
+download() {
+  local url="$1" dest="$2" label="$3" rc=0
+  curl -sf --max-time "$MAX_TIME" --connect-timeout "$CONNECT_TIMEOUT" "$url" -o "$dest" || rc=$?
+  if [ "$rc" -ne 0 ]; then
+    if [ "$rc" -eq 28 ]; then
+      echo "fetch: timed out downloading $label (network?)" >&2
+    else
+      echo "fetch: failed downloading $label (curl exit $rc)" >&2
+    fi
+    return "$rc"
+  fi
+}
+
 # 1. Stage downloads separately so a network failure leaves the cache intact.
 mkdir -p .makefiles
 STAGING=$(mktemp -d .makefiles/.fetch.XXXXXX)
 trap 'rm -rf -- "$STAGING"' EXIT
-curl -sf "$BASE_URL/manifest.txt" -o "$STAGING/manifest.txt"
+download "$BASE_URL/manifest.txt" "$STAGING/manifest.txt" "manifest.txt"
 
 # 2. Collect files to download: root Makefile + shared core files + this
 #    module's files.
@@ -88,7 +106,7 @@ for f in "${files[@]}"; do
   out="$STAGING/$f"
   mkdir -p "$(dirname "$out")"
   echo "Fetching $f ..."
-  curl -sf "$BASE_URL/$f" -o "$out"
+  download "$BASE_URL/$f" "$out" "$f"
   case "$f" in *.sh) chmod +x "$out" ;; esac
 done
 

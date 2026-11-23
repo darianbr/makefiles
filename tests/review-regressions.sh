@@ -11,8 +11,15 @@ cp -R "$repo/modules/." "$tmp/remote/"
 cat > "$tmp/bin/curl" <<'SH'
 #!/bin/sh
 set -eu
-url=$2
-out=$4
+url=; out=
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -o) out=$2; shift 2 ;;
+    --max-time|--connect-timeout) shift 2 ;;
+    -*) shift ;;
+    *) url=$1; shift ;;
+  esac
+done
 path=${url#https://test.invalid/modules/}
 printf '%s\n' "$path" >> "$CURL_LOG"
 [ "$path" != "${FAIL_PATH:-}" ] || exit 22
