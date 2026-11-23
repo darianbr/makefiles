@@ -67,14 +67,14 @@ STAGING=$(mktemp -d .makefiles/.fetch.XXXXXX)
 trap 'rm -rf -- "$STAGING"' EXIT
 download "$BASE_URL/manifest.txt" "$STAGING/manifest.txt" "manifest.txt"
 
-# 2. Collect files to download: root Makefile + shared core files + this
-#    module's files.
+# 2. Collect files to download: root Makefile + VERSION + shared core files +
+#    this module's files.
 files=()
 module_found=false
 root_found=false
 while IFS= read -r line || [ -n "$line" ]; do
   case "$line" in
-    Makefile|core/*|"$MODULE"/*)
+    Makefile|VERSION|core/*|"$MODULE"/*)
       if [[ ! "$line" =~ ^[a-zA-Z0-9_./-]+$ ]] || [[ "/$line/" == *"/../"* ]] || [[ "/$line/" == *"/./"* ]] || [[ "$line" == *"//"* ]] || [[ "$line" == */ ]]; then
         echo "Error: invalid manifest path: $line" >&2
         exit 1
@@ -116,5 +116,27 @@ for f in "${files[@]}"; do
   mv -f "$STAGING/$f" "$DEST/$f"
 done
 mv -f "$STAGING/manifest.txt" "$MANIFEST"
+
+# Record a sha256sum-verifiable hash of every cached file (except the record
+# itself) so later builds can detect corruption and self-heal. Re-fetching a
+# second module rewrites the whole record, now covering both modules' files.
+if command -v sha256sum >/dev/null 2>&1; then
+  hash_tool="sha256sum"
+elif command -v shasum >/dev/null 2>&1; then
+  hash_tool="shasum -a 256"
+else
+  echo "Error: sha256sum or shasum is required to record the cache hash." >&2
+  exit 1
+fi
+(
+  cd "$DEST"
+  find . -type f ! -name '.manifest.sha256' -print \
+    | sed 's#^\./##' | LC_ALL=C sort \
+    | while IFS= read -r rel; do
+        # Manifest paths are validated to never start with '-', so no '--' is
+        # needed (keeps this portable across sha256sum and macOS shasum).
+        $hash_tool "$rel"
+      done
+) > "$DEST/.manifest.sha256"
 
 echo "Module '$MODULE' is ready under $DEST/$MODULE/"

@@ -50,6 +50,10 @@ while IFS= read -r path || [ -n "$path" ]; do
 done < "$REMOTE/manifest.txt"
 test -x .makefiles/modules/phpunit/discover-paths.sh
 test -x .makefiles/modules/core/open-browser.sh
+# The cache records a verifiable hash of every file and carries the module-set VERSION.
+test -f .makefiles/modules/.manifest.sha256
+( cd .makefiles/modules && if command -v sha256sum >/dev/null 2>&1; then sha256sum -c --quiet .manifest.sha256; else shasum -a 256 -c .manifest.sha256; fi )
+test -s .makefiles/modules/VERSION
 cp .makefiles/modules/phpunit/Makefile "$tmp/original"
 cp .makefiles/modules/Makefile "$tmp/original-root"
 cp .makefiles/modules/manifest.txt "$tmp/original-manifest"

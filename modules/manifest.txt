@@ -1,4 +1,5 @@
 Makefile
+VERSION
 core/clean.mk
 core/discover-common.sh
 core/dispatch.mk
