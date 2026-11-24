@@ -4,7 +4,7 @@
 # Description: Register the local worktree proxy module.
 #
 
-MF_WTREE_CORE_FILES := .makefiles/modules/Makefile $(addprefix .makefiles/modules/core/,clean.mk discover-common.sh dispatch.mk help.mk paths.mk registry.mk remove-with-guardrails.sh)
+MF_WTREE_CORE_FILES := .makefiles/modules/Makefile $(addprefix .makefiles/modules/core/,clean.mk discover-common.sh dispatch.mk help.mk paths.mk registry.mk remove-with-guardrails.sh verify.mk)
 MF_WTREE_MISSING_CORE := $(foreach file,$(MF_WTREE_CORE_FILES),$(if $(shell test -s $(file) && test -f $(file) && test ! -L $(file) && printf yes),,$(file)))
 ifneq ($(strip $(MF_WTREE_MISSING_CORE)),)
 $(error wtree: Makefiles core is missing or invalid: $(MF_WTREE_MISSING_CORE))

@@ -40,6 +40,7 @@ $(MF_DISPATCH_MODULE)::
 		if [ -n "$(MF_DISPATCH_SETUP)" ] && [ -n "$(filter $(MF_DISPATCH_MODULE):$(MF_DISPATCH_TARGET),$(MF_DISPATCH_SETUP_PAIRS))" ]; then \
 			$(MAKE) --no-print-directory "$(MF_DISPATCH_SETUP)" || exit $$?; \
 		fi; \
+		$(MAKE) --no-print-directory mf-verify-module MF_VERIFY_MODULE="$(MF_DISPATCH_MODULE)" || exit $$?; \
 		$(MAKE) MF_SCOPED_MODULE="$(MF_DISPATCH_MODULE)" -f "$(MF_MODULE_ENTRY_$(MF_DISPATCH_MODULE))" "$(MF_DISPATCH_TARGET)"; \
 	fi
 endif

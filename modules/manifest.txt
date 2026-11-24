@@ -8,6 +8,7 @@ core/open-browser.sh
 core/paths.mk
 core/remove-with-guardrails.sh
 core/registry.mk
+core/verify.mk
 composer/Makefile
 composer/install-binary.mk
 composer/prerequisites.mk
