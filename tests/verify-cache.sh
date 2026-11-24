@@ -122,4 +122,36 @@ grep -F 'other-status' "$tmp/out" >/dev/null || { cat "$tmp/out" >&2; fail 'aggr
 cmp "$repo/modules/phpunit/targets.mk" .makefiles/modules/phpunit/targets.mk || fail 'aggregate heal did not restore the corrupted module file'
 grep -F 'modules/phpunit/targets.mk' "$CURL_LOG" >/dev/null || fail 'aggregate heal did not re-fetch the corrupted module file'
 
+# 6. modules-version is local-only; modules-update is explicit and prints old -> new.
+: > "$CURL_LOG"
+make --no-print-directory modules-version > "$tmp/out" 2>&1 || { cat "$tmp/out" >&2; fail 'modules-version'; }
+grep -F '0.2.0' "$tmp/out" >/dev/null || { cat "$tmp/out" >&2; fail 'modules-version did not print the recorded VERSION'; }
+grep -Eq '[0-9a-f]{12}' "$tmp/out" >/dev/null || { cat "$tmp/out" >&2; fail 'modules-version did not print a 12-char manifest hash'; }
+test ! -s "$CURL_LOG" || fail 'modules-version made network calls'
+printf '0.3.0\n' > "$REMOTE/VERSION"
+: > "$CURL_LOG"
+make --no-print-directory modules-update > "$tmp/out" 2>&1 || { cat "$tmp/out" >&2; fail 'modules-update'; }
+grep -F '0.2.0 -> 0.3.0' "$tmp/out" >/dev/null || { cat "$tmp/out" >&2; fail 'modules-update did not print old -> new'; }
+test "$(cat .makefiles/modules/VERSION)" = "0.3.0" || fail 'modules-update did not refresh the cached VERSION'
+make --no-print-directory modules-version > "$tmp/out" 2>&1 || { cat "$tmp/out" >&2; fail 'modules-version after update'; }
+grep -F '0.3.0' "$tmp/out" >/dev/null || { cat "$tmp/out" >&2; fail 'modules-version did not reflect the update'; }
+
+# 7. A normal build never re-fetches because the site is newer (updates stay explicit).
+printf '0.4.0\n' > "$REMOTE/VERSION"
+: > "$CURL_LOG"
+make --no-print-directory wtree help > "$tmp/out" 2>&1 || { cat "$tmp/out" >&2; fail 'scoped build with newer site VERSION'; }
+grep -F 'Available targets:' "$tmp/out" >/dev/null || { cat "$tmp/out" >&2; fail 'scoped build output'; }
+if grep -F 'modules/' "$CURL_LOG" >/dev/null; then
+  echo "FAIL: normal build re-fetched module files (silent update):" >&2
+  cat "$CURL_LOG" >&2
+  exit 1
+fi
+
+# 8. Direct -f usage of a module entry point is also protected by the hash check.
+printf '%s\n' '-include .makefiles/modules/wtree/Makefile' > Makefile
+printf '\nCORRUPTED=1\n' >> .makefiles/modules/wtree/targets.mk
+: > "$CURL_LOG"
+WTREE_BIN="$PWD/.makefiles/tools/wtree-fake" make --no-print-directory -f .makefiles/modules/wtree/Makefile mf-wtree-ensure > "$tmp/out" 2>&1 || { cat "$tmp/out" >&2; fail 'direct -f ensure with corrupted cache'; }
+cmp "$repo/modules/wtree/targets.mk" .makefiles/modules/wtree/targets.mk || fail 'direct -f ensure did not restore the corrupted file'
+
 echo 'verify-cache tests passed'

@@ -282,7 +282,49 @@ Checklist:
 - Avoid re-including the root from helper fragments; they inherit variables via the parent Makefile.
 - Stay ASCII unless the file already uses Unicode (per repo policy).
 
-## 7. Pre-PR Checklist
+## 7. Cache verification and updates
+
+`fetch` records a `sha256sum -c`-compatible hash of every cached file in
+`.makefiles/modules/.manifest.sha256` after each successful download, and the
+module set carries a `VERSION` file (fetched like any other manifest entry).
+Verification is local-only — a single `sha256sum -c` pass, no network — and
+stays sub-second on the happy path.
+
+When verification runs:
+
+- `make <module> <target>` (scoped dispatch) verifies that module's recorded
+  lines plus the shared root/core files before the recursive make.
+- `make <target>` (aggregate mode, exactly one goal) verifies every imported
+  module before the first goal's recipes run. `help` and `clean` are exempt:
+  help is informational, and clean must always work offline as the escape
+  hatch.
+- The wtree module's `mf-wtree-ensure` verifies the wtree module's lines
+  before invoking the binary, so direct `-f modules/wtree/Makefile` usage is
+  protected too.
+
+Self-heal semantics: on a hash mismatch or a missing record, the affected
+module is re-fetched once with `--force` (via the published `fetch` script,
+same pattern as the consumer bootstrap rule) and verified again. If the second
+verification still fails, the build stops with an error naming the offending
+file(s). There is no retry loop and no unbounded wait: every download is
+bounded by `MAKEFILES_FETCH_MAX_TIME` (default 30 s) and
+`MAKEFILES_FETCH_CONNECT_TIMEOUT` (default 10 s), both overridable via the
+environment, as is the site root (`MAKEFILES_BASE_URL`, default
+`https://darianbr.github.io/makefiles/modules`). A module that is absent from
+the published manifest (a local-only module) is skipped by verification and
+updates.
+
+Version visibility and updates are explicit by design — a normal build never
+re-fetches because the site is newer:
+
+- `make modules-version` prints the recorded `VERSION` plus the first 12 hex
+  characters of the cache record's hash, so two machines can be compared at a
+  glance. Local-only; no network.
+- `make modules-update` re-fetches every cached published module with
+  `--force` and prints `<old> -> <new>`. It is never a prerequisite of any
+  other target.
+
+## 8. Pre-PR Checklist
 
 From the repository root, run `make check` before submitting; it is also the
 Makefile's default goal and is enforced by CI on every push and pull request.
@@ -307,8 +349,9 @@ Before submitting:
 - [ ] Verify `make <module> help` and `make <module> clean` in a safe example workspace; exercise `install` where appropriate.
 - [ ] Documentation (README/CONTRIBUTIONS) updated if behavior is user-visible.
 - [ ] Commits focus on a single module or cohesive change set.
+- [ ] New published files are listed in `modules/manifest.txt` (covered by `make check-manifest`) and, if they are core infrastructure, added to the wtree module's `MF_WTREE_CORE_FILES` list.
 
-## 8. Need Help?
+## 9. Need Help?
 
 If you’re unsure about structure or headers, open an issue or draft PR referencing the module in question. Include:
 

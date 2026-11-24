@@ -21,7 +21,8 @@ export WTREE_CONTAINER_ENGINE WTREE_CERT_FILE WTREE_KEY_FILE
 
 .PHONY: mf-wtree-ensure
 mf-wtree-ensure:
-	@set -eu; \
+	@$(MAKE) -f .makefiles/modules/wtree/Makefile --no-print-directory mf-verify-module MF_VERIFY_MODULE=wtree || exit $$?; \
+	set -eu; \
 	maxtime=$${MAKEFILES_FETCH_MAX_TIME:-30}; \
 	connecttimeout=$${MAKEFILES_FETCH_CONNECT_TIMEOUT:-10}; \
 	case "$$WTREE_VERSION" in ''|[!0-9]*|*[!a-zA-Z0-9.+-]*) echo '[wtree] invalid WTREE_VERSION (use the release version without v)' >&2; exit 1 ;; esac; \

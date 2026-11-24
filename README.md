@@ -372,7 +372,25 @@ Behavior:
 - **Downloads**: the shared root `Makefile`, all `core/*` shared files, plus every file the manifest assigns to the requested module.
 - **Safe downloads**: files are staged before replacing the cache, so a failed download leaves previously cached files intact. Downloaded shell helpers are executable.
 - **`MAKEFILES_BASE_URL`**: override the base URL (default `https://darianbr.github.io/makefiles/modules`) — useful for testing against a local server.
+- **Timeouts**: every download is bounded by `MAKEFILES_FETCH_MAX_TIME` (default 30 s) and `MAKEFILES_FETCH_CONNECT_TIMEOUT` (default 10 s), so a stalled network fails fast with a clear message instead of hanging the build.
 - **Errors**: exits non-zero for invalid arguments or manifest paths, missing modules, or failed downloads (`curl -sf`).
+
+## Cache verification and updates
+
+After each successful fetch, `fetch` records a `sha256sum -c`-compatible hash
+of every cached file in `.makefiles/modules/.manifest.sha256`, and the module
+set carries a `VERSION` file. Builds verify the cache lazily — scoped dispatch
+verifies the selected module, aggregate mode verifies every imported module —
+using a local-only `sha256sum -c` pass (no network, sub-second on the happy
+path). On a mismatch or a missing record, the affected module is re-fetched
+once with `--force` and verified again; if it still fails, the build stops and
+names the offending file(s). A normal build never re-fetches because the site
+is newer — updates are explicit:
+
+```console
+make modules-version   # print the recorded VERSION + a short cache hash (no network)
+make modules-update    # re-fetch every cached published module, print <old> -> <new>
+```
 
 ## PHPUnit
 PHPUnit is available as a native module under `modules/phpunit/`. It expects the
