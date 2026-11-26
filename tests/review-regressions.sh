@@ -148,7 +148,8 @@ if PATH="$tmp/openers" /bin/sh "$helper" "$tmp/project" vitest report fails >"$t
 fi
 
 # Each public module target delegates the correct cached report to the helper.
-cp -R "$repo/modules/." .makefiles/modules/
+generation=$(cd .makefiles/modules && pwd -P)
+cp -R "$repo/modules/." "$generation/"
 cat > Makefile <<'MAKE'
 -include .makefiles/modules/phpunit/Makefile
 -include .makefiles/modules/codeception/Makefile
