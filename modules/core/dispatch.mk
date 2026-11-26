@@ -27,7 +27,7 @@ MAKEFLAGS += -o $(MF_DISPATCH_TARGET)
 # old-file flag also prevents the second goal's prerequisites from being
 # rebuilt in the outer invocation; this matters when the selected target has
 # prerequisites of its own.
-$(MF_DISPATCH_TARGET): SHELL := /bin/true
+$(MF_DISPATCH_TARGET): SHELL := $(shell if [ -x /usr/bin/true ]; then printf /usr/bin/true; elif [ -x /bin/true ]; then printf /bin/true; fi)
 $(MF_DISPATCH_MODULE)::
 	@if [ -z "$(filter $(MF_DISPATCH_MODULE),$(MF_MODULES))" ]; then \
 		printf '%s\n' "makefiles: unknown module '$(MF_DISPATCH_MODULE)'; imported modules: $(or $(sort $(MF_MODULES)),(none))" >&2; \
