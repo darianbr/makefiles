@@ -10,9 +10,24 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - name: Show GNU Make version
         run: make --version
       - name: Run repository checks
         run: make check
+      - name: Test fetch timeouts
+        run: bash tests/fetch-timeouts.sh
+      - name: Test review regressions
+        run: bash tests/review-regressions.sh
+      - name: Test fetch integrity
+        run: bash tests/fetch-integrity.sh
+      - name: Test cache verification
+        run: bash tests/verify-cache.sh
+      - name: Test real HTTP recovery
+        run: python3 tests/verify-http.py
+      - name: Test shared target vocabulary
+        run: bash tests/target-vocabulary.sh
+      - name: Test cache publication
+        run: python3 tests/fetch-publication.py

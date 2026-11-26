@@ -14,6 +14,7 @@ $(if $(filter install,$(2)),,$(error makefiles: module '$(call mf_module_name,$(
 $(if $(filter help,$(2)),,$(error makefiles: module '$(call mf_module_name,$(1))' must register the required target 'help'))
 $(if $(filter echopath,$(2)),$(error makefiles: module '$(call mf_module_name,$(1))' must replace retired target 'echopath' with 'help'))
 $(if $(filter $(words $(2)),$(words $(sort $(2)))),,$(error makefiles: module '$(call mf_module_name,$(1))' has duplicate public target registrations))
+$(call mf_verify_register,$(2))
 MF_MODULES += $(call mf_module_name,$(1))
 MF_MODULE_ENTRY_$(call mf_module_name,$(1)) := $(1)
 MF_MODULE_TARGETS_$(call mf_module_name,$(1)) := $(sort $(2))

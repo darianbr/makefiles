@@ -46,6 +46,7 @@ while [ "$#" -gt 0 ]; do
     -o) out=$2; shift 2 ;;
     --proto) protocol=$2; shift 2 ;;
     --proto-redir) redirect_protocol=$2; shift 2 ;;
+    --max-time|--connect-timeout) shift 2 ;;
     -*) shift ;;
     *) url=$1; shift ;;
   esac
@@ -238,8 +239,14 @@ fails wtree install WTREE_VERSION=0.2.0 WTREE_RELEASE_URL=http://example.invalid
 contains "$tmp/out" 'HTTPS'
 fails wtree install WTREE_VERSION=0.3.0
 [[ ! -e .makefiles/tools/wtree-0.3.0 ]] || fail 'failed download installed binary'
-mkdir "$tmp/empty-path"
-if PATH="$tmp/empty-path" "$real_make" --no-print-directory wtree install WTREE_VERSION=0.2.0 >"$tmp/out" 2>&1; then
+mkdir "$tmp/no-curl-path"
+# Cache verification runs before the binary prerequisite, so provide its
+# local tools while omitting curl to exercise the intended failure.
+for tool in awk mktemp rm sha256sum shasum; do
+  tool_path=$(type -P "$tool" || true)
+  if [[ -n "$tool_path" ]]; then ln -s "$tool_path" "$tmp/no-curl-path/$tool"; fi
+done
+if PATH="$tmp/no-curl-path" "$real_make" --no-print-directory wtree install WTREE_VERSION=0.2.0 >"$tmp/out" 2>&1; then
   fail 'missing curl was accepted'
 fi
 contains "$tmp/out" 'required tool not found: curl'

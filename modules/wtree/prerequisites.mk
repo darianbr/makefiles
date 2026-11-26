@@ -21,7 +21,10 @@ export WTREE_CONTAINER_ENGINE WTREE_CERT_FILE WTREE_KEY_FILE
 
 .PHONY: mf-wtree-ensure
 mf-wtree-ensure:
-	@set -eu; \
+	@$(MAKE) -f .makefiles/modules/wtree/Makefile --no-print-directory mf-verify-module MF_VERIFY_MODULE=wtree || exit $$?; \
+	set -eu; \
+	maxtime=$${MAKEFILES_FETCH_MAX_TIME:-30}; \
+	connecttimeout=$${MAKEFILES_FETCH_CONNECT_TIMEOUT:-10}; \
 	case "$$WTREE_VERSION" in ''|[!0-9]*|*[!a-zA-Z0-9.+-]*) echo '[wtree] invalid WTREE_VERSION (use the release version without v)' >&2; exit 1 ;; esac; \
 	dest=$$WTREE_BIN; \
 	if [ -z "$$dest" ]; then echo '[wtree] WTREE_BIN must be a non-symlink file path' >&2; exit 1; fi; \
@@ -48,8 +51,10 @@ mf-wtree-ensure:
 	mkdir -p "$$dir"; \
 	tmp=$$(mktemp -d "$$dir/.wtree.XXXXXXXX"); \
 	trap 'rm -rf "$$tmp"' EXIT HUP INT TERM; \
-	curl -fsSL --proto '=https' --proto-redir '=https' "$$WTREE_RELEASE_URL/$$archive" -o "$$tmp/archive.tar.gz"; \
-	curl -fsSL --proto '=https' --proto-redir '=https' "$$WTREE_RELEASE_URL/SHA256SUMS" -o "$$tmp/SHA256SUMS"; \
+	rc=0; curl -fsSL --proto '=https' --proto-redir '=https' --max-time "$$maxtime" --connect-timeout "$$connecttimeout" "$$WTREE_RELEASE_URL/$$archive" -o "$$tmp/archive.tar.gz" || rc=$$?; \
+	if [ "$$rc" -ne 0 ]; then if [ "$$rc" -eq 28 ]; then echo "[wtree] download timed out after $$maxtime s (network?)" >&2; else echo "[wtree] failed downloading $$archive (curl exit $$rc)" >&2; fi; exit "$$rc"; fi; \
+	rc=0; curl -fsSL --proto '=https' --proto-redir '=https' --max-time "$$maxtime" --connect-timeout "$$connecttimeout" "$$WTREE_RELEASE_URL/SHA256SUMS" -o "$$tmp/SHA256SUMS" || rc=$$?; \
+	if [ "$$rc" -ne 0 ]; then if [ "$$rc" -eq 28 ]; then echo "[wtree] download timed out after $$maxtime s (network?)" >&2; else echo "[wtree] failed downloading SHA256SUMS (curl exit $$rc)" >&2; fi; exit "$$rc"; fi; \
 	expected=$$(awk -v name="$$archive" '$$2 == name || $$2 == "*" name { if (length($$1) == 64 && $$1 ~ /^[[:xdigit:]]+$$/) { print tolower($$1); count++ } else { bad=1 } } END { if (count != 1 || bad) exit 1 }' "$$tmp/SHA256SUMS") || \
 		{ echo "[wtree] missing, invalid, or duplicate checksum for $$archive" >&2; exit 1; }; \
 	if [ "$$checksum" = sha256sum ]; then actual=$$(sha256sum < "$$tmp/archive.tar.gz"); \
