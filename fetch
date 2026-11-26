@@ -70,9 +70,6 @@ acquire_lock() {
           fi
         fi
       fi
-    else
-      rm -rf -- "$LOCK"
-      continue
     fi
     sleep 1
   done

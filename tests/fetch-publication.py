@@ -58,7 +58,8 @@ exec "$REAL_MV" "$@"
     record = (project / ".makefiles/modules/.manifest.sha256").read_text()
     for module in ("wtree", "phpunit", "rust"):
         if not any(line.endswith("  " + module + "/Makefile") for line in record.splitlines()):
-            errors.append("concurrent fetches lost the " + module + " checksum")
+            dirs = sorted(p.name for p in (project / ".makefiles/modules").iterdir() if p.is_dir())
+            errors.append("concurrent fetches lost the " + module + " checksum; dirs=" + repr(dirs) + "\nrecord=" + record)
 
     # Force a different root file into the remote, then fail after its publish
     # but before the remaining files or checksum record have been replaced.

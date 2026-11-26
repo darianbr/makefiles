@@ -180,9 +180,9 @@ for module in phpunit codeception vitest; do
 done
 tail -n 3 "$BROWSER_LOG" > "$tmp/actual"
 cat > "$tmp/expected" <<EXPECTED
-browser|$tmp/project|$project_physical/phpunit report/index.html
-browser|$tmp/project|$project_physical/codeception report/index.html
-browser|$tmp/project|$project_physical/vitest report/index.html
+browser|$project_physical|$project_physical/phpunit report/index.html
+browser|$project_physical|$project_physical/codeception report/index.html
+browser|$project_physical|$project_physical/vitest report/index.html
 EXPECTED
 diff -u "$tmp/expected" "$tmp/actual"
 echo 'Review regression checks passed.'
