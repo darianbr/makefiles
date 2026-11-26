@@ -11,6 +11,7 @@ mkdir -p "$tmp/bin" "$tmp/remote" "$tmp/project"
 cp -R "$repo/modules/." "$tmp/remote/"
 cat > "$tmp/bin/php" <<'SH'
 #!/bin/sh
+if [ "${1:-}" = "-m" ]; then echo xdebug; fi
 exit 0
 SH
 cat > "$tmp/bin/phpunit" <<'SH'
@@ -173,7 +174,7 @@ cat > Makefile <<'MAKE'
 -include .makefiles/modules/vitest/Makefile
 MAKE
 for module in phpunit codeception vitest; do
-  cache="$tmp/project/.makefiles/cache/$module-coverage-index"
+  cache="$project_physical/.makefiles/cache/$module-coverage-index"
   printf '%s\n' "$project_physical/$module report/index.html" > "$cache"
   make --no-print-directory -f ".makefiles/modules/$module/Makefile" -o "$cache" MF_SCOPED_MODULE="$module" coverage-open "BROWSER=$tmp/openers/browser"
 done
