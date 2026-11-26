@@ -13,8 +13,16 @@ cat > "$tmp/bin/php" <<'SH'
 #!/bin/sh
 exit 0
 SH
-chmod +x "$tmp/bin/php"
-export PHP="$tmp/bin/php"
+cat > "$tmp/bin/phpunit" <<'SH'
+#!/bin/sh
+exit 0
+SH
+cat > "$tmp/bin/codecept" <<'SH'
+#!/bin/sh
+exit 0
+SH
+chmod +x "$tmp/bin/php" "$tmp/bin/phpunit" "$tmp/bin/codecept"
+export PHP="$tmp/bin/php" PHPUNIT="$tmp/bin/phpunit" CODECEPTION="$tmp/bin/codecept"
 
 # Simulate the published site without network access.
 cat > "$tmp/bin/curl" <<'SH'
