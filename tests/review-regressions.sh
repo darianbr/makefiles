@@ -109,8 +109,8 @@ printf '%s\n' 'paths:' '  output: custom-output' > codeception.yml
 printf '%s\n' '-include .makefiles/modules/phpunit/Makefile' '-include .makefiles/modules/codeception/Makefile' > Makefile
 project_physical=$(cd "$tmp/project" && pwd -P)
 make --no-print-directory "$project_physical/.makefiles/cache/phpunit-coverage-dir" "$project_physical/.makefiles/cache/codeception-coverage-dir" MF_LEGACY_GOALS=1
-test "$(cat .makefiles/cache/phpunit-coverage-dir)" = "$tmp/project/custom report"
-test "$(cat .makefiles/cache/codeception-coverage-dir)" = "$tmp/project/custom-output/coverage"
+test "$(cat .makefiles/cache/phpunit-coverage-dir)" = "$project_physical/custom report"
+test "$(cat .makefiles/cache/codeception-coverage-dir)" = "$project_physical/custom-output/coverage"
 
 # The opener selects the requested binary, then xdg-open, then open; it
 # retains the project working directory and preserves paths with spaces.
