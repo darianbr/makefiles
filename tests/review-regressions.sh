@@ -99,9 +99,10 @@ for path in Makefile core/clean.mk phpunit/Makefile; do
 done
 
 # Helpers downloaded by older versions lacked executable permissions.
-cp -R "$repo/modules/codeception" .makefiles/modules/
-chmod -x .makefiles/modules/phpunit/discover-paths.sh
-chmod -x .makefiles/modules/codeception/discover-paths.sh
+generation=$(cd .makefiles/modules && pwd -P)
+cp -R "$repo/modules/." "$generation/"
+chmod -x "$generation/phpunit/discover-paths.sh"
+chmod -x "$generation/codeception/discover-paths.sh"
 printf '%s\n' '<phpunit><coverage><report><html outputDirectory="custom report"/></report></coverage></phpunit>' > phpunit.xml
 printf '%s\n' 'paths:' '  output: custom-output' > codeception.yml
 printf '%s\n' '-include .makefiles/modules/phpunit/Makefile' '-include .makefiles/modules/codeception/Makefile' > Makefile
