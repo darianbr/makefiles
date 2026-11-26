@@ -130,9 +130,9 @@ PATH="$tmp/openers" /bin/sh "$helper" "$tmp/project" vitest 'report path/index.h
 rm "$tmp/openers/xdg-open"
 PATH="$tmp/openers" /bin/sh "$helper" "$tmp/project" codeception 'report path/index.html' ''
 cat > "$tmp/expected" <<EXPECTED
-browser|$tmp/project|report path/index.html
-xdg-open|$tmp/project|report path/index.html
-open|$tmp/project|report path/index.html
+browser|$project_physical|report path/index.html
+xdg-open|$project_physical|report path/index.html
+open|$project_physical|report path/index.html
 EXPECTED
 diff -u "$tmp/expected" "$BROWSER_LOG"
 if PATH="$tmp/openers" /bin/sh "$helper" "$tmp/project" vitest report missing >"$tmp/out" 2>&1 || ! grep -q 'Browser opener not found: missing' "$tmp/out"; then
@@ -158,14 +158,14 @@ cat > Makefile <<'MAKE'
 MAKE
 for module in phpunit codeception vitest; do
   cache="$tmp/project/.makefiles/cache/$module-coverage-index"
-  printf '%s\n' "$tmp/project/$module report/index.html" > "$cache"
+  printf '%s\n' "$project_physical/$module report/index.html" > "$cache"
   make --no-print-directory -f ".makefiles/modules/$module/Makefile" -o "$cache" MF_SCOPED_MODULE="$module" coverage-open "BROWSER=$tmp/openers/browser"
 done
 tail -n 3 "$BROWSER_LOG" > "$tmp/actual"
 cat > "$tmp/expected" <<EXPECTED
-browser|$tmp/project|$tmp/project/phpunit report/index.html
-browser|$tmp/project|$tmp/project/codeception report/index.html
-browser|$tmp/project|$tmp/project/vitest report/index.html
+browser|$project_physical|$project_physical/phpunit report/index.html
+browser|$project_physical|$project_physical/codeception report/index.html
+browser|$project_physical|$project_physical/vitest report/index.html
 EXPECTED
 diff -u "$tmp/expected" "$tmp/actual"
 echo 'Review regression checks passed.'
