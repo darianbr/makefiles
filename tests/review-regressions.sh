@@ -3,7 +3,9 @@ set -euo pipefail
 trap 'rc=$?; echo "FAIL: review-regressions.sh:$LINENO: $BASH_COMMAND (exit $rc)" >&2' ERR
 
 repo=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
-tmp=$(mktemp -d "${TMPDIR:-/tmp}/makefiles-review.XXXXXX")
+tmp_base=${TMPDIR:-/tmp}
+tmp_base=${tmp_base%/}
+tmp=$(mktemp -d "$tmp_base/makefiles-review.XXXXXX")
 trap 'rm -rf -- "$tmp"' EXIT
 mkdir -p "$tmp/bin" "$tmp/remote" "$tmp/project"
 cp -R "$repo/modules/." "$tmp/remote/"
@@ -130,9 +132,9 @@ PATH="$tmp/openers" /bin/sh "$helper" "$tmp/project" vitest 'report path/index.h
 rm "$tmp/openers/xdg-open"
 PATH="$tmp/openers" /bin/sh "$helper" "$tmp/project" codeception 'report path/index.html' ''
 cat > "$tmp/expected" <<EXPECTED
-browser|$project_physical|report path/index.html
-xdg-open|$project_physical|report path/index.html
-open|$project_physical|report path/index.html
+browser|$tmp/project|report path/index.html
+xdg-open|$tmp/project|report path/index.html
+open|$tmp/project|report path/index.html
 EXPECTED
 diff -u "$tmp/expected" "$BROWSER_LOG"
 if PATH="$tmp/openers" /bin/sh "$helper" "$tmp/project" vitest report missing >"$tmp/out" 2>&1 || ! grep -q 'Browser opener not found: missing' "$tmp/out"; then
@@ -163,9 +165,9 @@ for module in phpunit codeception vitest; do
 done
 tail -n 3 "$BROWSER_LOG" > "$tmp/actual"
 cat > "$tmp/expected" <<EXPECTED
-browser|$project_physical|$project_physical/phpunit report/index.html
-browser|$project_physical|$project_physical/codeception report/index.html
-browser|$project_physical|$project_physical/vitest report/index.html
+browser|$tmp/project|$project_physical/phpunit report/index.html
+browser|$tmp/project|$project_physical/codeception report/index.html
+browser|$tmp/project|$project_physical/vitest report/index.html
 EXPECTED
 diff -u "$tmp/expected" "$tmp/actual"
 echo 'Review regression checks passed.'
