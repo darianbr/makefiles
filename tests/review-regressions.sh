@@ -106,7 +106,8 @@ chmod -x "$generation/codeception/discover-paths.sh"
 printf '%s\n' '<phpunit><coverage><report><html outputDirectory="custom report"/></report></coverage></phpunit>' > phpunit.xml
 printf '%s\n' 'paths:' '  output: custom-output' > codeception.yml
 printf '%s\n' '-include .makefiles/modules/phpunit/Makefile' '-include .makefiles/modules/codeception/Makefile' > Makefile
-make --no-print-directory "$tmp/project/.makefiles/cache/phpunit-coverage-dir" "$tmp/project/.makefiles/cache/codeception-coverage-dir" MF_LEGACY_GOALS=1
+project_physical=$(cd "$tmp/project" && pwd -P)
+make --no-print-directory "$project_physical/.makefiles/cache/phpunit-coverage-dir" "$project_physical/.makefiles/cache/codeception-coverage-dir" MF_LEGACY_GOALS=1
 test "$(cat .makefiles/cache/phpunit-coverage-dir)" = "$tmp/project/custom report"
 test "$(cat .makefiles/cache/codeception-coverage-dir)" = "$tmp/project/custom-output/coverage"
 
