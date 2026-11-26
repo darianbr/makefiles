@@ -242,7 +242,7 @@ fails wtree install WTREE_VERSION=0.3.0
 mkdir "$tmp/no-curl-path"
 # Cache verification runs before the binary prerequisite, so provide its
 # local tools while omitting curl to exercise the intended failure.
-for tool in awk rm sha256sum shasum; do
+for tool in awk mktemp rm sha256sum shasum; do
   tool_path=$(type -P "$tool" || true)
   if [[ -n "$tool_path" ]]; then ln -s "$tool_path" "$tmp/no-curl-path/$tool"; fi
 done

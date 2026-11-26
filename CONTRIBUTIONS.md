@@ -284,9 +284,10 @@ Checklist:
 
 ## 7. Cache verification and updates
 
-`fetch` records a `sha256sum -c`-compatible hash of every cached file in
-`.makefiles/modules/.manifest.sha256` after each successful download, and the
-module set carries a `VERSION` file (fetched like any other manifest entry).
+`fetch` records `sha256sum -c`-compatible hashes of the files it downloads in
+`.makefiles/modules/.manifest.sha256` and preserves records for untouched
+modules rather than hashing unverified files. The module set carries a required
+`VERSION` file (fetched like any other manifest entry).
 Verification is local-only — a single `sha256sum -c` pass, no network — and
 stays sub-second on the happy path.
 
@@ -294,10 +295,9 @@ When verification runs:
 
 - `make <module> <target>` (scoped dispatch) verifies that module's recorded
   lines plus the shared root/core files before the recursive make.
-- `make <target>` (aggregate mode, exactly one goal) verifies every imported
-  module before the first goal's recipes run. `help` and `clean` are exempt:
-  help is informational, and clean must always work offline as the escape
-  hatch.
+- Registered `make <target>` aggregate invocations with exactly one goal verify
+  every imported module before goal recipes run. `help` and `clean` are exempt;
+  neither can run if parsing an included file already fails.
 - The wtree module's `mf-wtree-ensure` verifies the wtree module's lines
   before invoking the binary, so direct `-f modules/wtree/Makefile` usage is
   protected too.
@@ -313,6 +313,18 @@ environment, as is the site root (`MAKEFILES_BASE_URL`, default
 `https://darianbr.github.io/makefiles/modules`). A module that is absent from
 the published manifest (a local-only module) is skipped by verification and
 updates.
+
+Verification requires the upgraded cached code. Older caches must first be
+refetched explicitly using `fetch <module> --force`. Also, Make parses included
+files before verification: syntax damage may prevent both normal targets and
+`make clean` from running. Refetch the affected module outside Make in that
+case. Hash verification is not a security boundary for Make's parse-time code.
+Cache publication creates a complete immutable generation before switching
+`.makefiles/modules` with one atomic symlink replacement. A bounded fetch lock
+serializes writers and releases on process exit. Crashes before the switch leave
+the prior complete generation visible; crashes after the switch leave only the
+new complete generation. Power-loss durability depends on filesystem rename and
+directory-sync guarantees outside this script's portable boundary.
 
 Version visibility and updates are explicit by design — a normal build never
 re-fetches because the site is newer:

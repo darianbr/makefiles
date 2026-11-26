@@ -41,9 +41,82 @@ if [ "$#" -gt 2 ] || { [ -n "$FORCE" ] && [ "$FORCE" != "--force" ]; }; then
   exit 1
 fi
 
+# Serialize cache publication. POSIX mkdir locks are compatible with Bash 3.2
+# and macOS, and the lock is always released after a bounded wait or on exit.
+mkdir -p .makefiles
+LOCK=.makefiles/.fetch.lock
+LOCK_HELD=0
+LOCK_OWNER=$$
+acquire_lock() {
+  local waited=0
+  while ! mkdir "$LOCK" 2>/dev/null; do
+    waited=$((waited + 1))
+    if [ "$waited" -ge 300 ]; then
+      echo "fetch: timed out waiting for another fetch (lock: $LOCK)" >&2
+      exit 1
+    fi
+    if [ -f "$LOCK/started" ]; then
+      started=$(cat "$LOCK/started" 2>/dev/null || echo '')
+      now=$(date +%s 2>/dev/null || echo '')
+      if [[ "$started" =~ ^[0-9]+$ ]] && [[ "$now" =~ ^[0-9]+$ ]]; then
+        lock_age=$((now - started))
+        if [ "$lock_age" -ge 300 ]; then
+          owner=$(cat "$LOCK/owner" 2>/dev/null || echo '')
+          owner_live=false
+          if [ -n "$owner" ] && kill -0 "$owner" 2>/dev/null; then owner_live=true; fi
+          if [ "$owner_live" != true ]; then
+            rm -rf -- "$LOCK"
+            continue
+          fi
+        fi
+      fi
+    else
+      rm -rf -- "$LOCK"
+      continue
+    fi
+    sleep 1
+  done
+  printf '%s\n' "$$" > "$LOCK/owner"
+  date +%s > "$LOCK/started" 2>/dev/null || :
+  LOCK_HELD=1
+}
+acquire_lock
+release_lock() {
+  if [ "$LOCK_HELD" -eq 1 ]; then rm -rf -- "$LOCK"; fi
+}
+
+# Always remove temporary state and release the writer lock, including SIG/KILL
+# only through normal shell exits; an outer SIGKILL is handled by stale-PID recovery.
+trap 'rm -rf -- "${STAGING:-}"; release_lock 2>/dev/null || true' EXIT
+
+# Migrate a legacy real cache directory to an immutable generation once.
+GENERATIONS=.makefiles/.modules-generations
+mkdir -p "$GENERATIONS"
+if [ -d "$DEST" ] && [ ! -L "$DEST" ]; then
+  migration_name=legacy
+  n=1
+  while [ -e "$GENERATIONS/$migration_name" ]; do migration_name="legacy-$n"; n=$((n + 1)); done
+  mv -- "$DEST" "$GENERATIONS/$migration_name"
+  ln -s ".modules-generations/$migration_name" "$DEST"
+fi
+
+# If migration was interrupted after moving the legacy directory, recover the
+# symlink from that preserved generation before doing network work.
+if [ ! -e "$DEST" ] && [ ! -L "$DEST" ]; then
+  for recovery in "$GENERATIONS"/legacy "$GENERATIONS"/legacy-*; do
+    if [ -d "$recovery" ]; then
+      recovery_link=.makefiles/.modules.recovery.$$
+      ln -s ".modules-generations/${recovery##*/}" "$recovery_link"
+      mv -Tf -- "$recovery_link" "$DEST" 2>/dev/null || mv -fh -- "$recovery_link" "$DEST"
+      break
+    fi
+  done
+fi
+
 # Skip the network entirely if the module is already fetched.
 if [ -f "$DEST/$MODULE/Makefile" ] && [ "$FORCE" != "--force" ]; then
   echo "Module '$MODULE' already present under $DEST/$MODULE/ (use --force to refetch)."
+  release_lock
   exit 0
 fi
 
@@ -64,7 +137,6 @@ download() {
 # 1. Stage downloads separately so a network failure leaves the cache intact.
 mkdir -p .makefiles
 STAGING=$(mktemp -d .makefiles/.fetch.XXXXXX)
-trap 'rm -rf -- "$STAGING"' EXIT
 download "$BASE_URL/manifest.txt" "$STAGING/manifest.txt" "manifest.txt"
 
 # 2. Collect files to download: root Makefile + VERSION + shared core files +
@@ -72,6 +144,7 @@ download "$BASE_URL/manifest.txt" "$STAGING/manifest.txt" "manifest.txt"
 files=()
 module_found=false
 root_found=false
+version_found=false
 while IFS= read -r line || [ -n "$line" ]; do
   case "$line" in
     Makefile|VERSION|core/*|"$MODULE"/*)
@@ -87,6 +160,7 @@ while IFS= read -r line || [ -n "$line" ]; do
       done
       files+=("$line")
       [ "$line" != Makefile ] || root_found=true
+      [ "$line" != VERSION ] || version_found=true
       [ "$line" != "$MODULE/Makefile" ] || module_found=true
       ;;
   esac
@@ -100,6 +174,10 @@ if [ "$root_found" != true ]; then
   echo "Error: shared Makefile not found in manifest." >&2
   exit 1
 fi
+if [ "$version_found" != true ]; then
+  echo "Error: VERSION not found in manifest." >&2
+  exit 1
+fi
 
 # 3. Download everything before replacing any cached file.
 for f in "${files[@]}"; do
@@ -110,33 +188,70 @@ for f in "${files[@]}"; do
   case "$f" in *.sh) chmod +x "$out" ;; esac
 done
 
-mkdir -p "$DEST"
-for f in "${files[@]}"; do
-  mkdir -p "$(dirname "$DEST/$f")"
-  mv -f "$STAGING/$f" "$DEST/$f"
-done
-mv -f "$STAGING/manifest.txt" "$MANIFEST"
-
-# Record a sha256sum-verifiable hash of every cached file (except the record
-# itself) so later builds can detect corruption and self-heal. Re-fetching a
-# second module rewrites the whole record, now covering both modules' files.
+# Hash staged files before changing the cache. Preserve existing records for
+# untouched modules rather than trusting their current, potentially damaged
+# contents. A missing record stays missing until that module is fetched.
 if command -v sha256sum >/dev/null 2>&1; then
-  hash_tool="sha256sum"
+  hash_tool=sha256sum
 elif command -v shasum >/dev/null 2>&1; then
-  hash_tool="shasum -a 256"
+  hash_tool='shasum -a 256'
 else
   echo "Error: sha256sum or shasum is required to record the cache hash." >&2
   exit 1
 fi
+printf '%s\n' "${files[@]}" manifest.txt > "$STAGING/.updated-paths"
 (
-  cd "$DEST"
-  find . -type f ! -name '.manifest.sha256' -print \
-    | sed 's#^\./##' | LC_ALL=C sort \
-    | while IFS= read -r rel; do
-        # Manifest paths are validated to never start with '-', so no '--' is
-        # needed (keeps this portable across sha256sum and macOS shasum).
-        $hash_tool "$rel"
-      done
-) > "$DEST/.manifest.sha256"
+  cd "$STAGING"
+  while IFS= read -r rel; do
+    $hash_tool "$rel" || exit $?
+  done < .updated-paths
+) > "$STAGING/.staged-hashes" || exit $?
+cp "$STAGING/.staged-hashes" "$STAGING/.new-hashes"
+if [ -f "$DEST/.manifest.sha256" ]; then
+  awk 'NR == FNR { updated[$0] = 1; next } !($2 in updated)' \
+    "$STAGING/.updated-paths" "$DEST/.manifest.sha256" >> "$STAGING/.new-hashes"
+fi
+
+mkdir -p "$GENERATIONS"
+GENERATION=$(mktemp -d "$GENERATIONS/.generation.XXXXXX")
+if [ -e "$DEST" ]; then
+  cp -R "$DEST/." "$GENERATION/"
+fi
+for f in "${files[@]}"; do
+  mkdir -p "$(dirname "$GENERATION/$f")"
+  cp -p "$STAGING/$f" "$GENERATION/$f"
+done
+cp -p "$STAGING/manifest.txt" "$GENERATION/manifest.txt"
+cp -p "$STAGING/.new-hashes" "$GENERATION/.manifest.sha256"
+
+# Re-verify only staged downloads below. Existing untouched files are intentionally
+# not trusted or rehashed because they may be corrupt and may need lazy re-fetch.
+# Verify the staged downloads themselves. Untouched existing files are retained
+# and may be damaged; they must not prevent a separate module fetch from publishing.
+if command -v sha256sum >/dev/null 2>&1; then
+  (cd "$STAGING" && sha256sum -c --quiet .staged-hashes) || {
+    echo "fetch: staged cache generation failed verification" >&2
+    exit 1
+  }
+else
+  (cd "$STAGING" && shasum -a 256 -c .staged-hashes >/dev/null) || {
+    echo "fetch: staged cache generation failed verification" >&2
+    exit 1
+  }
+fi
+
+GENERATION_NAME=$(basename "$GENERATION")
+NEXT_LINK=.makefiles/.modules.next.$$
+ln -s ".modules-generations/$GENERATION_NAME" "$NEXT_LINK"
+# rename(2) replacement of the symlink is atomic on POSIX filesystems.
+# Use -T on GNU; macOS replaces the symlink destination instead of following it
+# when -h is used, avoiding accidental publication inside the old generation.
+if mv -Tf -- "$NEXT_LINK" "$DEST" 2>/dev/null; then
+  :
+else
+  mv -fh -- "$NEXT_LINK" "$DEST"
+fi
+release_lock
+LOCK_HELD=0
 
 echo "Module '$MODULE' is ready under $DEST/$MODULE/"

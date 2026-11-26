@@ -11,8 +11,8 @@ MF_ROOT_ENTRY := $(lastword $(MAKEFILE_LIST))
 -include .makefiles/modules/core/paths.mk
 -include .makefiles/modules/core/registry.mk
 -include .makefiles/modules/core/dispatch.mk
--include .makefiles/modules/core/verify.mk
 -include .makefiles/modules/core/clean.mk
 -include .makefiles/modules/core/help.mk
+-include .makefiles/modules/core/verify.mk
 
 endif

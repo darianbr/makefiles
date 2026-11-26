@@ -61,9 +61,10 @@ if ! grep -q 'timed out downloading' "$tmp/err"; then
   cat "$tmp/err" >&2
   exit 1
 fi
-# The staging dir must be cleaned up even after the failure.
+# Neither staging directories nor the writer lock may survive the failed fetch.
 if ls .makefiles/.fetch.* >/dev/null 2>&1; then
-  echo 'Staging directory was not cleaned up after a failed fetch' >&2
+  echo 'Staging or lock state was not cleaned up after a failed fetch' >&2
+  ls -ld .makefiles/.fetch.* >&2
   exit 1
 fi
 echo "ok: bounded fetch timeout (finished in ${elapsed}s)"

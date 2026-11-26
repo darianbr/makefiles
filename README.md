@@ -377,15 +377,29 @@ Behavior:
 
 ## Cache verification and updates
 
-After each successful fetch, `fetch` records a `sha256sum -c`-compatible hash
-of every cached file in `.makefiles/modules/.manifest.sha256`, and the module
-set carries a `VERSION` file. Builds verify the cache lazily — scoped dispatch
-verifies the selected module, aggregate mode verifies every imported module —
+After each successful fetch, `fetch` records `sha256sum -c`-compatible hashes
+of the downloaded files in `.makefiles/modules/.manifest.sha256` and retains
+existing records for untouched modules. Untouched files without records must
+be fetched before they can be verified. The module set carries a `VERSION` file.
+Builds verify the cache lazily — scoped dispatch verifies the selected module,
+registered single-goal aggregate targets verify every imported module —
 using a local-only `sha256sum -c` pass (no network, sub-second on the happy
 path). On a mismatch or a missing record, the affected module is re-fetched
 once with `--force` and verified again; if it still fails, the build stops and
 names the offending file(s). A normal build never re-fetches because the site
 is newer — updates are explicit:
+
+Verification runs only once the upgraded module code has been installed. An
+older cache cannot upgrade itself on its own; explicitly refetch an imported
+module with `fetch <module> --force` to install the new verifier. GNU Make
+parses included files before verification runs: syntax errors in an included
+file can therefore prevent even `make clean` from starting. Refetch the affected
+module with `fetch <module> --force` outside Make in that case. Verification is
+not a security boundary against malicious Makefiles or parse-time functions.
+- **Published cache generations**: fetch creates a complete generation, verifies
+  its checksum record, and switches `.makefiles/modules` to that generation with
+  one atomic symlink replacement. Concurrent fetches are serialized; interruption
+  before the switch leaves the previous generation visible.
 
 ```console
 make modules-version   # print the recorded VERSION + a short cache hash (no network)

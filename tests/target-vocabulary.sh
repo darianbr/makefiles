@@ -8,6 +8,24 @@ trap 'rm -rf -- "$tmp_root"' EXIT
 
 mkdir -p "$tmp_root/.makefiles/modules" "$tmp_root/bin"
 cp -R "$repo_root/modules/." "$tmp_root/.makefiles/modules/"
+# Model a fetched cache, including verification metadata, rather than a raw
+# copy of the published files without the record fetch normally writes.
+(
+  cd "$tmp_root/.makefiles/modules"
+  if command -v sha256sum >/dev/null 2>&1; then hash_tool=sha256sum; else hash_tool='shasum -a 256'; fi
+  while IFS= read -r path; do $hash_tool "$path"; done < manifest.txt
+  $hash_tool manifest.txt
+) > "$tmp_root/.makefiles/modules/.manifest.sha256"
+
+# The tests below restrict PATH to omit npm or tsc, but verification still
+# needs ordinary system utilities; these links do not provide either tool.
+for bin in no-tsc-bin no-npm-bin; do
+  mkdir -p "$tmp_root/$bin"
+  for utility in mktemp rm awk grep wc sha256sum shasum cp cmp touch head cut cat ls; do
+    path=$(command -v "$utility" || true)
+    if [ -n "$path" ]; then ln -s "$path" "$tmp_root/$bin/$utility"; fi
+  done
+done
 
 cat > "$tmp_root/bin/cargo" <<'SH'
 #!/bin/sh
@@ -117,7 +135,6 @@ printf 'cargo check --locked\n' > "$tmp_root/expected.log"
 diff -u "$tmp_root/expected.log" "$COMMAND_LOG"
 
 # A missing compiler is reported without invoking npm install.
-mkdir -p "$tmp_root/no-tsc-bin"
 ln -s "$make_bin" "$tmp_root/no-tsc-bin/make"
 cp "$tmp_root/bin/npm" "$tmp_root/no-tsc-bin/npm"
 : > "$COMMAND_LOG"
@@ -137,7 +154,6 @@ if [[ -s "$COMMAND_LOG" ]]; then
 fi
 
 # An installed compiler is sufficient; check does not require npm.
-mkdir -p "$tmp_root/no-npm-bin"
 : > "$COMMAND_LOG"
 PATH="$tmp_root/no-npm-bin" make_in_fixture typescript check 'TSC=./bin/tsc'
 printf 'tsc --noEmit -p tsconfig.json\n' > "$tmp_root/expected.log"
