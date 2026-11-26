@@ -95,11 +95,10 @@ modules-update:
 	manifest="$(MF_MODULES_ROOT)manifest.txt"; \
 	modules=''; \
 	if [ -f "$$manifest" ]; then \
-	  # Unquoted on purpose: module names are validated to [a-zA-Z0-9_-], so \
-	  # word-splitting the directory list is safe and required. \
-	  for d in $$(cd "$(MF_MODULES_ROOT)" && LC_ALL=C ls -d */ 2>/dev/null); do \
-	    m=$${d%/}; \
-	    if [ -f "$(MF_MODULES_ROOT)$$m/Makefile" ] && grep -q "^$$m/Makefile" "$$manifest"; then modules="$$modules $$m"; fi; \
+	  for d in "$(MF_MODULES_ROOT)"*/; do \
+	    [ -d "$$d" ] || continue; \
+	    m=$${d%/}; m=$${m##*/}; \
+	    if [ -f "$$d/Makefile" ] && grep -q "^$$m/Makefile" "$$manifest"; then modules="$$modules $$m"; fi; \
 	  done; \
 	fi; \
 	if [ -z "$$modules" ]; then echo 'makefiles: no cached published modules to update' >&2; exit 1; fi; \
