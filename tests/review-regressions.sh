@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+trap 'rc=$?; echo "FAIL: review-regressions.sh:$LINENO: $BASH_COMMAND (exit $rc)" >&2' ERR
 
 repo=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/makefiles-review.XXXXXX")
