@@ -9,6 +9,12 @@ tmp=$(mktemp -d "$tmp_base/makefiles-review.XXXXXX")
 trap 'rm -rf -- "$tmp"' EXIT
 mkdir -p "$tmp/bin" "$tmp/remote" "$tmp/project"
 cp -R "$repo/modules/." "$tmp/remote/"
+cat > "$tmp/bin/php" <<'SH'
+#!/bin/sh
+exit 0
+SH
+chmod +x "$tmp/bin/php"
+export PHP="$tmp/bin/php"
 
 # Simulate the published site without network access.
 cat > "$tmp/bin/curl" <<'SH'
